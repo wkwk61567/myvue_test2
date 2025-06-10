@@ -68,6 +68,7 @@
                   v-model="form[field.column]"
                   :label="field.name"
                   :readonly="
+                    field.isReadonly ? field.isReadonly ():
                     utils.isReadonly(
                       mode,
                       field.inputType,
@@ -384,6 +385,8 @@ const formSelectOptions = {
   kind: ref(["生產領料", "生產制損", "外發領料", "包材領料"]), // 類別選項
 };
 
+const netMaterialRatio = 0.8; // (llpcs + tlpcs) / yfpcs 必須小於此比例才可以做制損領料, 應該要再檢查這個數字是否合理
+
 // 工令單物控向導的小視窗的狀態和方法
 const isScgcdDialogVisible = ref(false); // 工令單物控向導的小視窗的顯示狀態
 const scgcdQuery = reactive({
@@ -401,6 +404,15 @@ const openScgcdDialog = (gcdno = "") => {
 };
 const selectScgcd = (item) => {
   // 選擇工令單
+
+  // 當(llpcs + tlpcs) / yfpcs 超過一定的比例, 才可以做制損領料 #BusinessLogic
+  if (form.kind === "生產制損" && (item["header.scgcditm.llpcs"] + item["header.scgcditm.tlpcs"]) / item["header.scgcditm.yfpcs"]
+    < netMaterialRatio) {
+    alert("領料數不足，不能做制損領料");
+    return;
+  }
+
+  // 讀入工令單的資料到表格中
   let tempItem = {};
   tempItem["header.clllditm.id"] = ++idCurrent.value;
   tempItem["header.clllditm.gcdno"] = item["header.scgcdmst.gcdno"];
@@ -426,6 +438,7 @@ const selectScgcd = (item) => {
   tempItem["header.clllditm.note"] = "";
   tempItem["NA.sp.clkind"] = item["NA.sp.clkind"];
   console.log("選擇的工令單資料：", tempItem);
+
   results.value.push(tempItem); // 新增一行
 
   isScgcdDialogVisible.value = false; // 關閉工令單物控向導的小視窗
@@ -511,6 +524,14 @@ const handleInputSpQuery = () => {
 };
 const selectSp = async (item) => {
   // 選取材料
+
+  // 當(llpcs + tlpcs) / yfpcs 超過一定的比例, 才可以做制損領料 #BusinessLogic
+  if ((item["header.scgcditm.llpcs"] + item["header.scgcditm.tlpcs"]) / item["header.scgcditm.yfpcs"]
+    < netMaterialRatio) {
+    alert("領料數不足，不能做制損領料");
+    return;
+  }
+
   console.log("選取的材料：", item);
 
   let tempItem = {};
@@ -536,6 +557,8 @@ const selectSp = async (item) => {
     results.value.push(tempItem); // 新增一行
   } else {
     // 如果是直接點選表格中的材料編碼，則更新該行
+    tempItem["header.clllditm.id"] = selecrRow["header.clllditm.id"]; // 保留原有的id
+    idCurrent.value--; // 恢復idCurrent的值
     console.log("更新選取的行：", selecrRow);
     Object.assign(selecrRow, tempItem);
     selecrRow = null;
@@ -705,7 +728,7 @@ const save = async () => {
       itm: itm,
     };
     const data = await utils.fetchData("cllldDetailsAdd.php", params); // 透過api新增資料
-    console.log("新增資料結果 (MST)：", data);
+    console.log("新增資料結果：", data);
     alert("存檔完成");
 
     const url = {
@@ -783,10 +806,16 @@ const updateTable = async (item, key) => {
     // 處理實發數欄位的變更
     if (form.kind == '生產領料' || form.kind == '外發領料') {
       // 外發領料目前沒有在使用了
+
+      // 限制能領的上限 #BusinessLogic
+      const limitRatio = 1; // 實發數的上限比例, 應該要再檢查這個數字是否合理
+      const maxPcs = Math.ceil(
+        parseFloat(item["header.clllditm.yfpcs"]) * limitRatio
+      ); // 上限是實發數乘上一個比例, 再無條件進位
       if (
         parseFloat(item["header.clllditm.pcs"]) +
           parseFloat(item["header.clllditm.pcsnx"]) >
-        parseFloat(item["header.clllditm.yfpcs"]) &&
+        maxPcs &&
         item["NA.sp.clkind"] !== "卷料"
       ) {
         alert("實發數不能大於應發數");
@@ -1058,7 +1087,13 @@ const tableCellStyles = computed(() => {
 */
 const formRows = computed(() => {
   const formRowsTemp = [
-    [labels.value["label.cllldmst.danno"], labels.value["label.cllldmst.kind"]],
+    [
+      labels.value["label.cllldmst.danno"],
+      {
+        ...labels.value["label.cllldmst.kind"],
+        isReadonly: () => form.kind !== "" // 特殊的唯獨邏輯, 如果kind已經有值了, 則不允許修改 #BusinessLogic
+      },
+    ],
     [
       labels.value["label.cllldmst.dannobase"],
       labels.value["label.cllldmst.ddate"],

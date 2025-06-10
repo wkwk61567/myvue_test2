@@ -517,73 +517,75 @@ const selectSupplier = async (supplier) => {
 const save = async () => {
   // 存檔到資料庫
 
-   // 檢查results是否為空
-   if (results.value.length === 0) {
+  // 檢查results是否為空
+  if (results.value.length === 0) {
     alert("請先添加訂單資料");
     return;
   }
 
-  if (mode.value === "edit") {
-    console.log("更新資料庫中的mst");
-    // 更新資料庫中的mst
-    const params = {
-      danno: form.danno,
-      ckkind: form.ckkind,
-      dannobase: form.dannobase,
-      pjdno: form.pjdno,
-      ddate: form.ddate,
-      demo: form.demo,
-    };
-    //console.log("傳送 (Update MST):", params);
-    const data = await utils.fetchData(
-      "cljhdDetailsUpdate.php",
-      params
-    ); // 透過api獲取資料
-    console.log("更新資料結果 (MST)：", data);
-  }
-
-  // 處理表格中新增的資料
-  const itemsToBeAdded = results.value.filter(item => item["header.cljhditm.id"] > idLastInDB.value);
-
-  if (itemsToBeAdded.length > 0) {
-    // 只保存新增的row
-    
-    idCurrent.value = idLastInDB.value; // 重頭計算id
-    // 逐行新增
-    for (let item of itemsToBeAdded) {
-      const params = {
-        ddate: form.ddate,
-        supplyno: form.supplyno,
-        pjdno: form.pjdno,
-        ckkind: form.ckkind,
-        spkindname: form.spkindname,
-        qcnot: form.qcnot,
-        danno: form.danno,
-        dannobase: form.dannobase,
-        demo: form.demo,
-        id: ++idCurrent.value, // 使用並遞增計數器
-        dhdno: item["header.cljhditm.dhdno"],
-        dhdid: item["header.cljhditm.dhdid"],
-        spno: item["header.cljhditm.spno"],
-        jhpcs: item["header.cljhditm.jhpcs"],
-        jhkg: item["header.cljhditm.jhkg"],
-      };
-
-      //console.log("傳送 (Add ITM):", params);
-      const data = await utils.fetchData(
-        "cljhdDetailsAdd.php",
-        params
-      ); // 透過api獲取資料
-      console.log("新增資料結果：", data);
-    }
-  }
-  alert("存檔完成");
-
   if (mode.value === "add") {
+    // 處理表格中新增的資料
+    const itemsToBeAdded = results.value.filter(item => item["header.cljhditm.id"] > idLastInDB.value);
+
+    if (itemsToBeAdded.length > 0) {
+      // 只保存新增的row
+      
+      idCurrent.value = idLastInDB.value; // 重頭計算id
+      // 逐行新增
+      for (let item of itemsToBeAdded) {
+        const params = {
+          ddate: form.ddate,
+          supplyno: form.supplyno,
+          pjdno: form.pjdno,
+          ckkind: form.ckkind,
+          spkindname: form.spkindname,
+          qcnot: form.qcnot,
+          danno: form.danno,
+          dannobase: form.dannobase,
+          demo: form.demo,
+          id: ++idCurrent.value, // 使用並遞增計數器
+          dhdno: item["header.cljhditm.dhdno"],
+          dhdid: item["header.cljhditm.dhdid"],
+          spno: item["header.cljhditm.spno"],
+          jhpcs: item["header.cljhditm.jhpcs"],
+          jhkg: item["header.cljhditm.jhkg"],
+        };
+
+        //console.log("傳送 (Add ITM):", params);
+        const data = await utils.fetchData(
+          "cljhdDetailsAdd.php",
+          params
+        ); // 透過api獲取資料
+        console.log("新增資料結果：", data);
+      }
+    }
+
+    alert("存檔完成");
     const url = {
         path: `/cljhdDetails/${form.danno}`,
     };
     await router.push(url); // 移動到新增的訂單的頁面
+
+  } else if (mode.value === "edit") {
+    // 保存新增的row到資料庫
+    const itemsToBeAdded = results.value.filter(
+      (item) => item["header.cljhditm.id"] > idLastInDB.value
+    ); // 表格中新增的資料
+    const itm = itemsToBeAdded.map((item) => ({
+      id: item["header.cljhditm.id"],
+      dhdno: item["header.cljhditm.dhdno"],
+      dhdid: item["header.cljhditm.dhdid"],
+      spno: item["header.cljhditm.spno"],
+      jhpcs: item["header.cljhditm.jhpcs"],
+      jhkg: item["header.cljhditm.jhkg"],
+    }));
+    const params = {
+      danno: form.danno,
+      itm: itm,
+    };
+    const data = await utils.fetchData("cljhditmUpdateNewRow.php", params); // 透過api更新資料
+    console.log("更新資料結果：", data);
+    alert("存檔完成");
   }
 
   await setMode("view"); // 切換到查看模式
@@ -727,8 +729,6 @@ const updateTable = async (item, key) => {
     }
 
     if (confirm(`您確定要更新${labels.value[key].name}為${item[key]}嗎?`)) {
-      alert("此版本功能未完成");
-      return;
       const params = {
         danno: form.danno,
         id: item["header.cljhditm.id"],
@@ -737,6 +737,7 @@ const updateTable = async (item, key) => {
       };
       const data = await utils.fetchData("cljhditmUpdate.php", params); // 透過api更新資料
       console.log("更新結果:", data);
+      /*
       if (key === "header.cljhditm.jhpcs" && !(item.spkindno === '3' && (item.clkind === '板料' || item.clkind === '鋁擠型'))) {
         // 如果不是板料, 則更新jhkg
         const paramsJhkg = {
@@ -749,6 +750,7 @@ const updateTable = async (item, key) => {
         console.log("更新結果(jhkg):", dataJhkg);
         alert("由於暫收數量變更, 暫收重量已自動更新");
       }
+      */
       alert("更新完成");
     }
   }

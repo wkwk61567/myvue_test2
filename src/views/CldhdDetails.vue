@@ -19,7 +19,7 @@
       :discard="() => setMode('view')"
       :isButtonsSaveDiscardVisible="mode !== 'view'"
     />
-    <!-- mst表單區塊 -->
+    <!-- form表單區塊 -->
     <v-card>
       <v-card-text>
         <v-row v-for="(row, rowIndex) in formRows" :key="rowIndex">
@@ -519,6 +519,8 @@ const selectSp = async (item) => {
       selecrRow[key] = tempItem[key];
     });
     console.log("替代的行：", selecrRow);
+
+    // 如果是編輯模式，立刻詢問使用者是否更新到資料庫，否則應該要取消更新
     if (mode.value === "edit") {
       if (confirm(`您確定要更新${labels.value["header.cldhditm.spno"].name}為${selecrRow["header.cldhditm.spno"]}嗎?`)) {
         // 漏洞: 此時如果使用者按取消, 可能導致使用者填寫不正確的價格
@@ -645,7 +647,7 @@ const openGclpriceDialog = async (item) => {
   priceType.value = ""; // 清空價格類型
   isGclpriceDialogVisible.value = true; // 打開原材料價格查詢介面
 };
-const selectGclprice = (item) => {
+const selectGclprice = async (item) => {
   // 選取原材料價格
   console.log("選取的原材料價格：", item);
 
@@ -669,6 +671,27 @@ const selectGclprice = (item) => {
       return;
     }
   }
+  /*
+  // 如果是編輯模式，立刻詢問使用者是否更新到資料庫，否則應該要取消更新
+  if (mode.value === "edit") {
+    const key = "header.cldhditm.price"; // 要更新的欄位
+    const priceOld = selecrRow[key]; // 原先的價格
+    if (confirm(`您確定要更新${labels.value[key].name}為${item[key]}嗎?`)){
+      const params = {
+        danno: form.danno,
+        id: item["NA.cldhditm.id"],
+        column: labels.value[key].column,
+        value: item[key],
+      };
+      const data = await utils.fetchData("cldhditmUpdate.php", params); // 透過api更新資料
+      console.log("更新結果:", data);
+      alert("更新完成");
+    } else {
+      item[key] = priceOld; // 如果使用者按取消, 恢復原先的價格
+      return; // 如果使用者按取消, 取消更新
+    }
+  }
+  */
   isGclpriceDialogVisible.value = false; // 關閉原材料價格查詢視窗
   updateTable(selecrRow, "header.cldhditm.price");
 };
@@ -833,7 +856,7 @@ const save = async () => {
       itm: itm,
     };
     const data = await utils.fetchData("cldhdDetailsAdd.php", params); // 透過api新增資料
-    console.log("新增資料結果 (MST)：", data);
+    console.log("新增資料結果：", data);
     alert("存檔完成");
 
     const url = {
@@ -1175,7 +1198,7 @@ const formRows = computed(() => {
       {
         ...labels.value["label.cldhdmst.supplyno"],
         componentType: "icon-text-field",
-        icon: (mode.value === "add" && form.supplyno === "") ?"mdi-dots-horizontal-circle" : null,
+        icon: (mode.value === "add" && form.supplyno === "") ?"mdi-dots-horizontal-circle" : null, // 如果供方編碼存在, 則不可以再更改 #BusinessLogic
         onClick: openDialog,
       },
       labels.value["label.cldhdmst.danno"],
