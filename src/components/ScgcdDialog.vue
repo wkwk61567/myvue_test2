@@ -132,7 +132,7 @@
                       disabled
                     ></v-checkbox>
                   </td>
-                  <td v-else style="padding-right: 50px">
+                  <td v-else :class="labels[header.key]?.dataType === 'number' ? 'number-td' : ''" style="padding-right: 50px">
                     {{ item[header.key] }}
                   </td>
                 </template>

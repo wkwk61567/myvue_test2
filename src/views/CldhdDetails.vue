@@ -211,6 +211,7 @@
                     readonly
                     :append-inner-icon="(mode !== 'view' && !(item['header.cldhditm.getpcs'] > 0)) ? 'mdi-dots-horizontal-circle' : null"
                     @click:append-inner="openSpDialog(item)"
+                    :class="labels[header.key]?.dataType === 'number' ? 'number-field' : ''"
                   ></v-text-field>
                 </td>
                 <td
@@ -228,6 +229,7 @@
                     :ref="setFieldRef(`field_${item['NA.cldhditm.id']}_${header.key}`)"
                     @focus="handleFocus(item, header.key, $event.target)"
                     @blur="handleBlur(item, header.key, $event.target)"
+                    :class="labels[header.key]?.dataType === 'number' ? 'number-field' : ''"
                   ></v-text-field>
                 </td>
                 <td
@@ -244,6 +246,7 @@
                     :ref="setFieldRef(`field_${item['NA.cldhditm.id']}_${header.key}`)"
                     @focus="handleFocus(item, header.key, $event.target)"
                     @blur="handleBlur(item, header.key, $event.target)"
+                    :class="labels[header.key]?.dataType === 'number' ? 'number-field' : ''"
                   ></v-text-field>
                 </td>
                 <td
@@ -260,6 +263,7 @@
                     :ref="setFieldRef(`field_${item['NA.cldhditm.id']}_${header.key}`)"
                     @focus="handleFocus(item, header.key, $event.target)"
                     @blur="handleBlur(item, header.key, $event.target)"
+                    :class="labels[header.key]?.dataType === 'number' ? 'number-field' : ''"
                   ></v-text-field>
                 </td>
                 <td
@@ -270,11 +274,13 @@
                     v-model="item[header.key]"
                     :readonly="mode === 'view' || isFieldDisabled(item, header.key)"
                     @change="updateTable(item, header.key)"
+                    :class="labels[header.key]?.dataType === 'number' ? 'number-field' : ''"
                   ></v-text-field>
                 </td>
                 <td
                   v-else
                   :style="tableCellStyles[`${header.key}_td`]"
+                  :class="labels[header.key]?.dataType === 'number' ? 'number-td' : ''"
                 >
                   {{ item[header.key] }}
                 </td>
@@ -515,15 +521,15 @@ const selectSp = async (item) => {
     results.value.push(tempItem); // 新增一行
   } else {
     // 重選材料編碼，並替換相關的欄位
+    const selecrRow_old = { ...selecrRow }; // // 儲存原先的行
     Object.keys(tempItem).forEach(key => {
       selecrRow[key] = tempItem[key];
     });
     console.log("替代的行：", selecrRow);
 
-    // 如果是編輯模式，立刻詢問使用者是否更新到資料庫，否則應該要取消更新
+    // 如果是編輯模式，立刻詢問使用者是否更新到資料庫，否則取消更新
     if (mode.value === "edit") {
       if (confirm(`您確定要更新${labels.value["header.cldhditm.spno"].name}為${selecrRow["header.cldhditm.spno"]}嗎?`)) {
-        // 漏洞: 此時如果使用者按取消, 可能導致使用者填寫不正確的價格
         const paramsSpno = {
           danno: form.danno,
           id: selecrRow["NA.cldhditm.id"],
@@ -557,6 +563,11 @@ const selectSp = async (item) => {
           alert("由於材料編碼變更, 單價已自動更新");
         }
         alert("更新完成");
+      } else {
+        // 使用者按取消, 恢復原先的行
+        Object.keys(selecrRow_old).forEach(key => {
+          selecrRow[key] = selecrRow_old[key];
+        });
       }
     }
   }
@@ -651,12 +662,15 @@ const selectGclprice = async (item) => {
   // 選取原材料價格
   console.log("選取的原材料價格：", item);
 
+  const key = "header.cldhditm.price"; // 要更新的欄位
+  const priceOld = selecrRow[key]; // 原先的價格
+
   // 填入單價欄位
   if (selecrRow.clkind === '卷料') {
     const priceTypeName = "header.gclprice.pricekg" + priceType.value;
     console.log("priceTypeName:", priceTypeName);
     if (item[priceTypeName] > 0) {
-      selecrRow["header.cldhditm.price"] = item[priceTypeName]; 
+      selecrRow[key] = item[priceTypeName]; 
     } else {
       alert("價格為0");
       return;
@@ -665,35 +679,43 @@ const selectGclprice = async (item) => {
     const priceTypeName = "header.gclprice.price" + priceType.value;
     console.log("priceTypeName:", priceTypeName);
     if (item[priceTypeName] > 0) {
-      selecrRow["header.cldhditm.price"] = item[priceTypeName];
+      selecrRow[key] = item[priceTypeName];
     } else {
       alert("價格為0");
       return;
     }
   }
-  /*
-  // 如果是編輯模式，立刻詢問使用者是否更新到資料庫，否則應該要取消更新
+  
+  // 如果是編輯模式，立刻詢問使用者是否更新到資料庫，否則取消更新
   if (mode.value === "edit") {
-    const key = "header.cldhditm.price"; // 要更新的欄位
-    const priceOld = selecrRow[key]; // 原先的價格
-    if (confirm(`您確定要更新${labels.value[key].name}為${item[key]}嗎?`)){
+    if (confirm(`您確定要更新${labels.value[key].name}為${selecrRow[key]}嗎?`)){
       const params = {
         danno: form.danno,
-        id: item["NA.cldhditm.id"],
+        id: selecrRow["NA.cldhditm.id"],
         column: labels.value[key].column,
-        value: item[key],
+        value: selecrRow[key],
       };
       const data = await utils.fetchData("cldhditmUpdate.php", params); // 透過api更新資料
       console.log("更新結果:", data);
       alert("更新完成");
+
+      if(spkindname.value === "原材料"){
+        selecrRow["header.cldhditm.pay"] = parseFloat(
+          (selecrRow["header.cldhditm.kg"] * selecrRow[key]).toFixed(2)
+        ); // 計算金額
+      } else {
+        selecrRow["header.cldhditm.pay"] = parseFloat(
+          (selecrRow["header.cldhditm.pcs"] * selecrRow[key]).toFixed(2)
+        ); // 計算金額
+      }
     } else {
-      item[key] = priceOld; // 如果使用者按取消, 恢復原先的價格
+      selecrRow[key] = priceOld; // 如果使用者按取消, 恢復原先的價格
       return; // 如果使用者按取消, 取消更新
     }
   }
-  */
+  
   isGclpriceDialogVisible.value = false; // 關閉原材料價格查詢視窗
-  updateTable(selecrRow, "header.cldhditm.price");
+  //updateTable(selecrRow, "header.cldhditm.price");
 };
 
 
@@ -887,7 +909,7 @@ const save = async () => {
 };
 
 const updateForm = async (field) => {
-  // 更新cldhdmst的欄位
+  // 更新form的欄位
 
   // 檢查交貨日期是否早於訂購日期 #BusinessLogic
   for (const item of results.value) {
@@ -933,7 +955,7 @@ const updateTable= async (item, key) => {
   }
 
   // 更新pay欄位 #BusinessLogic
-  if ( key === "header.cldhditm.pcs" || key === "header.cldhditm.price") {
+  if ( key === "header.cldhditm.pcs") {
     if(spkindname.value === "原材料"){
       item["header.cldhditm.pay"] = parseFloat(
         (item["header.cldhditm.kg"] * item["header.cldhditm.price"]).toFixed(2)
@@ -1218,7 +1240,7 @@ const formRows = computed(() => {
 console.log("formRows:", formRows.value);
 
 const isFormComplete = computed(() => {
-  // 檢查mst的欄位是否有空值
+  // 檢查form的欄位是否有空值
   for (let row of formRows.value) {
     for (let field of row) {
       if (

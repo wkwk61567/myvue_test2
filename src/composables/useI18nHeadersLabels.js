@@ -54,6 +54,10 @@ export function useI18nHeadersLabels(selectedLanguage, fileName) {
               fullDictionary[fileName]?.[category]?.[table]?.[column]?.[
                 "validationGroup"
               ] || null,
+            dataType:
+              fullDictionary[fileName]?.[category]?.[table]?.[column]?.[
+                "dataType"
+              ] || null,
           };
         }
       }

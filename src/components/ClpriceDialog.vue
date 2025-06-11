@@ -41,7 +41,7 @@
                       disabled
                     ></v-checkbox>
                   </td>
-                  <td v-else >{{ item[header.key] }}</td>
+                  <td v-else :class="labels[header.key]?.dataType === 'number' ? 'number-td' : ''" >{{ item[header.key] }}</td>
                 </template>
               </tr>
             </v-hover>

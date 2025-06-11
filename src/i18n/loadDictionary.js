@@ -49,6 +49,7 @@ export async function loadDictionary() {
           isSticky: dictionaryDataRow.isSticky || null,
           validationRule: dictionaryDataRow.validationRule || null,
           validationGroup: dictionaryDataRow.validationGroup || null,
+          dataType: dictionaryDataRow.dataType || null,
         };
       });
     }

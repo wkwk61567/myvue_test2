@@ -175,6 +175,7 @@
                     :ref="setFieldRef(`field_${item['NA.cldhditm.id']}_${header.key}`)"
                     @focus="handleFocus(item, header.key, $event.target)"
                     @blur="handleBlur(item, header.key, $event.target)"
+                    :class="labels[header.key]?.dataType === 'number' ? 'number-field' : ''"
                   ></v-text-field>
                 </td>
                 <td v-else-if="header.key === 'header.cljhditm.jhkg'"
@@ -192,10 +193,12 @@
                     :ref="setFieldRef(`field_${item['NA.cldhditm.id']}_${header.key}`)"
                     @focus="handleFocus(item, header.key, $event.target)"
                     @blur="handleBlur(item, header.key, $event.target)"
+                    :class="labels[header.key]?.dataType === 'number' ? 'number-field' : ''"
                   ></v-text-field>
                 </td>
                 <td v-else
                   :style="{ backgroundColor: INPUT_COLOR[labels[header.key].inputType] }"
+                  :class="labels[header.key]?.dataType === 'number' ? 'number-td' : ''"
                 >
                 {{ item[header.key] }}
                 </td>
@@ -913,7 +916,7 @@ console.log("formRows:", formRows.value);
 
 const isFormComplete = computed(() => {
   // 以後其他頁面可能也會用到, 到時候應該可以移到utils裡面
-  // 檢查mst的欄位是否有空值
+  // 檢查form的欄位是否有空值
   for (let row of formRows.value) {
     for (let field of row) {
       if (!field.isAllowBlank && (form[field.column] === null || form[field.column] === "")) {

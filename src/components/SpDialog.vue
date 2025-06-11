@@ -72,7 +72,7 @@
                 :style="isHovering ? { backgroundColor: '#f5f5f5' } : {}"
               >
                 <template v-for="header in headers" :key="header.key">
-                  <td>{{ item[header.key] }}</td>
+                  <td :class="labels[header.key]?.dataType === 'number' ? 'number-td' : ''">{{ item[header.key] }}</td>
                 </template>
               </tr>
             </v-hover>

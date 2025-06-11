@@ -193,6 +193,7 @@
                       mode !== 'view' ? 'mdi-dots-horizontal-circle' : null
                     "
                     @click:append-inner="form.kind === '包材領料' ? null : openScgcdDialog()"
+                    :class="labels[header.key]?.dataType === 'number' ? 'number-field' : ''"
                   ></v-text-field>
                 </td>
                 <td
@@ -208,6 +209,7 @@
                       mode !== 'view' ? 'mdi-dots-horizontal-circle' : null
                     "
                     @click:append-inner="item['header.clllditm.gcdno'] === '' ? openSpDialog(item) : openScgcdDialog(item['header.clllditm.gcdno'])"
+                    :class="labels[header.key]?.dataType === 'number' ? 'number-field' : ''"
                   ></v-text-field>
                 </td>
                 <td
@@ -225,6 +227,7 @@
                       utils.handleField(item, header.key);
                       updateTable(item, header.key);
                     "
+                    :class="labels[header.key]?.dataType === 'number' ? 'number-field' : ''"
                   ></v-text-field>
                 </td>
                 <td
@@ -242,6 +245,9 @@
                       utils.handleField(item, header.key);
                       updateTable(item, header.key);
                     "
+                    :error="!isRowFieldsValid(item)"
+                    :error-messages="isRowFieldsValid(item) ? null : '擇一填寫'"
+                    :class="labels[header.key]?.dataType === 'number' ? 'number-field' : ''"
                   ></v-text-field>
                 </td>
                 <td
@@ -259,6 +265,9 @@
                       utils.handleField(item, header.key);
                       updateTable(item, header.key);
                     "
+                    :error="!isRowFieldsValid(item)"
+                    :error-messages="isRowFieldsValid(item) ? null : '擇一填寫'"
+                    :class="labels[header.key]?.dataType === 'number' ? 'number-field' : ''"
                   ></v-text-field>
                 </td>
                 <td
@@ -276,6 +285,7 @@
                       utils.handleField(item, header.key);
                       updateTable(item, header.key);
                     "
+                    :class="labels[header.key]?.dataType === 'number' ? 'number-field' : ''"
                   ></v-text-field>
                 </td>
                 <td
@@ -290,6 +300,7 @@
                       mode === 'view' || isFieldDisabled(item, header.key)
                     "
                     @change="updateTable(item, header.key)"
+                    :class="labels[header.key]?.dataType === 'number' ? 'number-field' : ''"
                   ></v-text-field>
                 </td>
                 <td
@@ -297,6 +308,7 @@
                   :style="{
                     backgroundColor: INPUT_COLOR[labels[header.key].inputType],
                   }"
+                  :class="labels[header.key]?.dataType === 'number' ? 'number-td' : ''"
                 >
                   {{ item[header.key] }}
                 </td>
@@ -553,14 +565,15 @@ const selectSp = async (item) => {
   tempItem["NA.sp.clkind"] = item["NA.sp.clkind"];
   console.log("選擇的工令單資料：", tempItem);
 
-  if (selecrRow === null) {
+  if (selecrRow === null || mode.value === "edit") {
     results.value.push(tempItem); // 新增一行
   } else {
     // 如果是直接點選表格中的材料編碼，則更新該行
+    // 改變材料編碼會影響多個欄位, 且使用者必須重新填寫實收數, 但是編輯模式時一次只保存一個欄位, 如果允許在編輯模式修改材料編碼, 會與現在的邏輯不符合
     tempItem["header.clllditm.id"] = selecrRow["header.clllditm.id"]; // 保留原有的id
     idCurrent.value--; // 恢復idCurrent的值
     console.log("更新選取的行：", selecrRow);
-    Object.assign(selecrRow, tempItem);
+    Object.assign(selecrRow, tempItem); // 更新選取的行
     selecrRow = null;
   }
 
@@ -1109,7 +1122,7 @@ const formRows = computed(() => {
 console.log("formRows:", formRows.value);
 
 const isFormComplete = computed(() => {
-  // 檢查mst的欄位是否有空值
+  // 檢查form的欄位是否有空值
   for (let row of formRows.value) {
     for (let field of row) {
       if (
