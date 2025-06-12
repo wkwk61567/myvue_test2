@@ -18,8 +18,8 @@ export const INPUT_COLORS = {
   fixed: "#aaaaaa",
   unused: "#888888",
 };
-export const HOVER_COLOR = "#f5f5f5";
-export const SELECTED_COLOR = "#d3d3d3";
+export const HOVER_COLOR = "#f5f5f5"; // 滑鼠懸停時的背景色
+export const SELECTED_COLOR = "#d3d3d3"; // 選取的row的背景色
 export const LANGUAGE_OPTIONS = [
   { title: "繁體中文", key: "zh-TW" },
   { title: "English", key: "en" },

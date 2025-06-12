@@ -391,7 +391,106 @@ const form = reactive({
   maker: "", // 制單
   audit: "", // 審核
 });
-
+/*
+                <td
+                  v-if="specialColumnConfigs[header.key]"
+                  :style="{
+                    backgroundColor: INPUT_COLORS[labels[header.key].inputType],
+                  }"
+                >
+                  <v-text-field
+                    v-model="item[header.key]"
+                    v-bind="specialColumnConfigs[header.key].getProps(item, header.key)"
+                    v-on="specialColumnConfigs[header.key].getEvents(item, header.key)"
+                  ></v-text-field>
+                </td>
+                <td
+*/
+/*
+const specialColumnConfigs = {
+  'header.clllditm.gcdno': {
+    getProps: (item, headerKey) => ({
+      readonly: true,
+      'append-inner-icon': mode.value !== 'view' ? 'mdi-dots-horizontal-circle' : null,
+      class: labels.value[headerKey]?.dataType === 'number' ? 'number-field' : '',
+    }),
+    getEvents: (item, headerKey) => ({
+      'click:append-inner': () => form.kind === '包材領料' ? null : openScgcdDialog(),
+    }),
+  },
+  'header.clllditm.spno': {
+    getProps: (item, headerKey) => ({
+      readonly: true,
+      'append-inner-icon': mode.value !== 'view' ? 'mdi-dots-horizontal-circle' : null,
+      class: labels.value[headerKey]?.dataType === 'number' ? 'number-field' : '',
+    }),
+    getEvents: (item, headerKey) => ({
+      'click:append-inner': () => item['header.clllditm.gcdno'] === '' ? openSpDialog(item) : openScgcdDialog(item['header.clllditm.gcdno']),
+    }),
+  },
+  'header.clllditm.sqpcs': {
+    getProps: (item, headerKey) => ({
+      readonly: mode.value === 'view' || isFieldDisabled(item, headerKey),
+      class: labels.value[headerKey]?.dataType === 'number' ? 'number-field' : '',
+    }),
+    getEvents: (item, headerKey) => ({
+      change: () => {
+        utils.handleField(item, headerKey);
+        updateTable(item, headerKey);
+      },
+    }),
+  },
+  'header.clllditm.pcs': {
+    getProps: (item, headerKey) => ({
+      readonly: mode.value === 'view' || isFieldDisabled(item, headerKey),
+      error: !isRowFieldsValid(item),
+      'error-messages': isRowFieldsValid(item) ? null : '擇一填寫',
+      class: labels.value[headerKey]?.dataType === 'number' ? 'number-field' : '',
+    }),
+    getEvents: (item, headerKey) => ({
+      change: () => {
+        utils.handleField(item, headerKey);
+        updateTable(item, headerKey);
+      },
+    }),
+  },
+  'header.clllditm.pcsnx': {
+    getProps: (item, headerKey) => ({
+      readonly: mode.value === 'view' || isFieldDisabled(item, headerKey),
+      error: !isRowFieldsValid(item),
+      'error-messages': isRowFieldsValid(item) ? null : '擇一填寫',
+      class: labels.value[headerKey]?.dataType === 'number' ? 'number-field' : '',
+    }),
+    getEvents: (item, headerKey) => ({
+      change: () => {
+        utils.handleField(item, headerKey);
+        updateTable(item, headerKey);
+      },
+    }),
+  },
+  'header.clllditm.cbprice': {
+    getProps: (item, headerKey) => ({
+      readonly: mode.value === 'view' || isFieldDisabled(item, headerKey),
+      class: labels.value[headerKey]?.dataType === 'number' ? 'number-field' : '',
+    }),
+    getEvents: (item, headerKey) => ({
+      change: () => {
+        utils.handleField(item, headerKey);
+        updateTable(item, headerKey);
+      },
+    }),
+  },
+  'header.clllditm.note': {
+    getProps: (item, headerKey) => ({
+      readonly: mode.value === 'view' || isFieldDisabled(item, headerKey),
+      class: labels.value[headerKey]?.dataType === 'number' ? 'number-field' : '',
+    }),
+    getEvents: (item, headerKey) => ({
+      change: () => updateTable(item, headerKey),
+    }),
+  },
+};
+*/
 const formSelectOptions = {
   kind: ref(["生產領料", "生產制損", "外發領料", "包材領料"]), // 類別選項
 };
@@ -660,25 +759,26 @@ const initializeData = async () => {
   const data = await utils.fetchData("cllldDetails.php", params); //透過api獲取資料
   console.log("查詢結果：", data);
   if (
-    !data["cllldmst"] ||
-    data["cllldmst"].length === 0 ||
-    !data["clllditm"] ||
-    data["clllditm"].length === 0
+    !data["form"] ||
+    data["form"].length === 0 ||
+    !data["table"] ||
+    data["table"].length === 0
   ) {
     // 如果沒有資料, 設定顯示空白訂單
 
-    // 只允許點擊新增和保存按鈕, 其他按鈕禁用
+    // 新增按鈕之外的其他按鈕都禁用
     isAddDisabled.value = false;
     isEditDisabled.value = true;
     isDeleteOrderDisabled.value = true;
     isToggleAuditDisabled.value = true;
+    isExportExcelDisabled.value = true;
 
     reset(); // 重設所有欄位
     return; // 如果沒有資料，則不進行後續操作
   }
 
   // 接收查詢結果
-  results.value = data["clllditm"];
+  results.value = data["table"];
 
   // 排序
   results.value.sort((a, b) => {
@@ -687,17 +787,24 @@ const initializeData = async () => {
     return idA.localeCompare(idB, { numeric: true });
   });
 
-  idLastInDB.value = data["clllditm"].at(-1)["header.clllditm.id"]; // 取得DB最後一筆的 id
+  idLastInDB.value = data["table"].at(-1)["header.clllditm.id"]; // 取得DB最後一筆的 id
   console.log("最後一筆的 id：", idLastInDB.value);
   idCurrent.value = idLastInDB.value; // 設置目前的 id 為DB最後一筆的 id
 
-  //form.danno = data["cllldmst"][0].danno; // danno 由 url 接收
-  form.kind = data["cllldmst"][0].kind;
-  form.dannobase = data["cllldmst"][0].dannobase;
-  form.ddate = data["cllldmst"][0].ddate.date.split(" ")[0]; // 將日期格式化為 YYYY-MM-DD
-  form.demo = data["cllldmst"][0].demo;
-  form.maker = data["cllldmst"][0].maker;
-  form.audit = data["cllldmst"][0].audit;
+  Object.keys(form).forEach(key => {
+    form[key] = data["form"][0][key] || form[key];
+  }); // 將所有 form 屬性設為查詢結果的對應值，如果沒有則不變
+  form.ddate = form.ddate.date.split(" ")[0]; // 將日期切割成 YYYY-MM-DD
+
+  /*
+  //form.danno = data["form"][0].danno; // danno 由 url 接收
+  form.kind = data["form"][0].kind;
+  form.dannobase = data["form"][0].dannobase;
+  form.ddate = data["form"][0].ddate.date.split(" ")[0]; // 將日期格式化為 YYYY-MM-DD
+  form.demo = data["form"][0].demo;
+  form.maker = data["form"][0].maker;
+  form.audit = data["form"][0].audit;
+  */
 
   orderInDBNum.value = results.value.length; // 取得原本的行數
 
@@ -710,11 +817,14 @@ const save = async () => {
   // 存檔到資料庫
 
   if (mode.value === "add") {
+    // 保存form和table的資料到資料庫
+
     // 檢查results是否為空
     if (results.value.length === 0) {
       alert("請先添加訂單資料");
       return;
     }
+
     const itm = results.value.map((item) => ({
       id: item["header.clllditm.id"],
       spno: item["header.clllditm.spno"],
@@ -1136,14 +1246,9 @@ onMounted(async () => {
 
   // 檢查 URL 參數，自動切換到對應的模式
   const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get("mode") === "add") {
-    await setMode("add");
-    // 移除 URL 中的 mode 參數
-    const urlCurrent = new URL(window.location);
-    urlCurrent.searchParams.delete("mode");
-    window.history.replaceState({}, "", urlCurrent);
-  } else if (urlParams.get("mode") === "edit") {
-    await setMode("edit");
+  const mode = urlParams.get("mode");
+  if (mode === "add" || mode === "edit") {
+    await setMode(mode);
     // 移除 URL 中的 mode 參數
     const urlCurrent = new URL(window.location);
     urlCurrent.searchParams.delete("mode");

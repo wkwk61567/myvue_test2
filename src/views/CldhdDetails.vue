@@ -790,25 +790,26 @@ const initializeData = async () => {
   const data = await utils.fetchData("cldhdDetails.php", params); //透過api獲取資料
   console.log("查詢結果：", data);
   if (
-    !data["cldhdmst"] ||
-    data["cldhdmst"].length === 0 ||
-    !data["cldhditm"] ||
-    data["cldhditm"].length === 0
+    !data["form"] ||
+    data["form"].length === 0 ||
+    !data["table"] ||
+    data["table"].length === 0
   ) {
     // 如果沒有資料, 設定顯示空白訂單
 
-    // 只允許點擊新增和保存按鈕, 其他按鈕禁用
+    // 新增按鈕之外的其他按鈕都禁用
     isAddDisabled.value = false;
     isEditDisabled.value = true;
     isDeleteOrderDisabled.value = true;
     isToggleAuditDisabled.value = true;
+    isExportExcelDisabled.value = true;
 
     reset(); // 重設所有欄位
     return; // 如果沒有資料，則不進行後續操作
   }
 
   // 接收查詢結果
-  results.value = data["cldhditm"];
+  results.value = data["table"];
 
   // 轉換時間格式
   results.value.forEach((item) => {
@@ -819,24 +820,32 @@ const initializeData = async () => {
 
   // 排序
   results.value.sort((a, b) => {
-    const danidA = a["header.cldhditm.danid"] || "";
-    const danidB = b["header.cldhditm.danid"] || "";
-    return danidA.localeCompare(danidB, { numeric: true });
+    const idA = String(a["NA.cldhditm.id"] || "");
+    const idB = String(b["NA.cldhditm.id"] || "");
+    return idA.localeCompare(idB, { numeric: true });
   });
 
-  idLastInDB.value = data["cldhditm"].at(-1)["NA.cldhditm.id"]; // 取得DB最後一筆的 id
+  idLastInDB.value = data["table"].at(-1)["NA.cldhditm.id"]; // 取得DB最後一筆的 id
   console.log("最後一筆的 id：", idLastInDB.value);
   idCurrent.value = idLastInDB.value; // 設置目前的 id 為DB最後一筆的 id
 
-  form.supplyno = data["cldhdmst"][0].supplyno;
-  form.supplyname = data["cldhdmst"][0].supplyname;
-  //form.danno = data["cldhdmst"][0].danno; // danno 由 url 接收
-  form.ddate = data["cldhdmst"][0].ddate.date.split(" ")[0]; // 將日期格式化為 YYYY-MM-DD
-  form.demo = data["cldhdmst"][0].demo;
-  form.maker = data["cldhdmst"][0].maker;
-  form.audit = data["cldhdmst"][0].audit;
+  // 這裡應該要根據column找到對應的dataType === "date"的欄位 將日期切割成 YYYY-MM-DD
+  Object.keys(form).forEach(key => {
+    form[key] = data["form"][0][key] || form[key];
+  }); // 將所有 form 屬性設為查詢結果的對應值，如果沒有則設為空字串
+  form.ddate = form.ddate.date.split(" ")[0]; // 將日期切割成 YYYY-MM-DD
 
-  spkindname.value = data["cldhdmst"][0].supplykind; // 在網頁版, spkindname與供方類別對應
+  /*
+  form.supplyno = data["form"][0].supplyno;
+  form.supplyname = data["form"][0].supplyname;
+  //form.danno = data["form"][0].danno; // danno 由 url 接收
+  form.ddate = data["form"][0].ddate.date.split(" ")[0]; // 將日期格式化為 YYYY-MM-DD
+  form.demo = data["form"][0].demo;
+  form.maker = data["form"][0].maker;
+  form.audit = data["form"][0].audit;
+  */
+
+  spkindname.value = data["form"][0].supplykind; // 在網頁版, spkindname與供方類別對應
   spkindno.value =  spkindnoOptions.value.find(
       (item) => item.spkindname === spkindname.value
     ).spkindno; // 類別編碼
@@ -852,11 +861,14 @@ const save = async () => {
   // 存檔到資料庫
 
   if (mode.value === "add") {
+    // 保存form和table的資料到資料庫
+
     // 檢查results是否為空
     if (results.value.length === 0) {
       alert("請先添加訂單資料");
       return;
     }
+    
     const itm = results.value.map((item) => ({
       id: item["NA.cldhditm.id"],
       spno: item["header.cldhditm.spno"],
@@ -1258,14 +1270,9 @@ onMounted(async () => {
 
   // 檢查 URL 參數，自動切換到對應的模式
   const urlParams = new URLSearchParams(window.location.search);
-  if (urlParams.get("mode") === "add") {
-    await setMode("add");
-    // 移除 URL 中的 mode 參數
-    const urlCurrent = new URL(window.location);
-    urlCurrent.searchParams.delete("mode");
-    window.history.replaceState({}, "", urlCurrent);
-  } else if (urlParams.get("mode") === "edit") {
-    await setMode("edit");
+  const mode = urlParams.get("mode");
+  if (mode === "add" || mode === "edit") {
+    await setMode(mode);
     // 移除 URL 中的 mode 參數
     const urlCurrent = new URL(window.location);
     urlCurrent.searchParams.delete("mode");
