@@ -27,7 +27,7 @@ CljhdMaster.vue,filter,cljhdmst,dannobase,原始單號,Original Order No.,Số �
 CljhdMaster.vue,filter,cljhdmst,supplyno,供方編碼,Provider Code,Mã nhà cung cấp,,inputable,,TRUE,icon-text-field,6,,,,
 CljhdMaster.vue,filter,supply,supplyname,供方名稱,Provider Name,Tên nhà cung cấp,,inputable,,TRUE,icon-text-field,6,,,,
 CljhdMaster.vue,filter,cljhdmst,spkindname,收貨類別,Receiving Type,Loại nhận hàng,,inputable,,TRUE,select,6,,,,
-CljhdMaster.vue,header,cljhdmst,ddate,日期,Date,Ngày,1,,,,,,,,,
+CljhdMaster.vue,header,cljhdmst,ddate,日期,Date,Ngày,1,,,,,,,,,date
 CljhdMaster.vue,header,cljhdmst,danno,收貨單號,Receiving Order No.,Số đơn nhận hàng,2,,,,,,,,,
 CljhdMaster.vue,header,cljhdmst,dannobase,原始單號,Original Order No.,Số đơn gốc,3,,,,,,,,,
 CljhdMaster.vue,header,cljhdmst,pjdno,驗收單號,Inspection Order No.,Số đơn kiểm tra,4,,,,,,,,,
@@ -39,8 +39,8 @@ CljhdMaster.vue,header,cljhdmst,qcnot,免檢,Exempt,Miễn kiểm tra,9,,,,,,,,,
 CljhdMaster.vue,header,cljhdmst,demo,備注,Remark,Ghi chú,10,,,,,,,,,
 CljhdMaster.vue,header,cljhdmst,maker,制單,Maker,Người lập,11,,,,,,,,,
 CljhdMaster.vue,header,cljhdmst,audit,審核,Audit,Kiểm tra,12,,,,,,,,,
-CljhdMaster.vue,header,cljhdmst,dtime,輸入時間,Input Time,Thời gian nhập,13,,,,,,,,,
-CljhdMaster.vue,header,cljhdmst,auditdtime,審核時間,Audit Time,Thời gian kiểm tra,14,,,,,,,,,
+CljhdMaster.vue,header,cljhdmst,dtime,輸入時間,Input Time,Thời gian nhập,13,,,,,,,,,datetime
+CljhdMaster.vue,header,cljhdmst,auditdtime,審核時間,Audit Time,Thời gian kiểm tra,14,,,,,,,,,datetime
 CljhdDetails.vue,label,cljhdmst,supplyno,供方編碼,Supplier Code,Mã nhà cung cấp,,optional,FALSE,FALSE,text-field,3,,nonEmptyString,,
 CljhdDetails.vue,label,cljhdmst,danno,收貨單號,Receiving Order No.,Số đơn nhận hàng,,fixed,FALSE,FALSE,text-field,4,,nonEmptyString,,
 CljhdDetails.vue,label,supply,supplyname,供方名稱,Supplier Name,Tên nhà cung cấp,,optional,FALSE,FALSE,text-field,4,,nonEmptyString,,
@@ -108,7 +108,7 @@ CldhdMaster.vue,filter,cldhdmst,danno,訂購單號,Purchase Order No.,Số đơn
 CldhdMaster.vue,filter,cldhdmst,demo,備注,Remark,Ghi chú,,inputable,,TRUE,text-field,6,,,,
 CldhdMaster.vue,filter,cldhdmst,supplyno,供方編碼,Provider Code,Mã nhà cung cấp,,inputable,,TRUE,icon-text-field,6,,,,
 CldhdMaster.vue,filter,supply,supplyname,供方名稱,Provider Name,Tên nhà cung cấp,,inputable,,TRUE,icon-text-field,6,,,,
-CldhdMaster.vue,header,cldhdmst,ddate,訂購日期,Order Date,Ngày đặt hàng,1,,,,,,,,,
+CldhdMaster.vue,header,cldhdmst,ddate,訂購日期,Order Date,Ngày đặt hàng,1,,,,,,,,,date
 CldhdMaster.vue,header,cldhdmst,danno,訂單編碼,Order Code,Mã đơn hàng,2,,,,,,,,,
 CldhdMaster.vue,header,cldhdmst,xqdno,需求單號,Request Number,Số yêu cầu,3,,,,,,,,,
 CldhdMaster.vue,header,cldhdmst,supplyno,供方編碼,Provider Code,Mã nhà cung cấp,4,,,,,,,,,
@@ -116,8 +116,8 @@ CldhdMaster.vue,header,supply,supplyname,供方名稱,Provider Name,Tên nhà cu
 CldhdMaster.vue,header,cldhdmst,demo,備注,Remark,Ghi chú,6,,,,,,,,,
 CldhdMaster.vue,header,cldhdmst,maker,制單,Maker,Người lập,7,,,,,,,,,
 CldhdMaster.vue,header,cldhdmst,audit,審核,Audit,Kiểm tra,8,,,,,,,,,
-CldhdMaster.vue,header,cldhdmst,dtime,輸入時間,Input Time,Thời gian nhập,9,,,,,,,,,
-CldhdMaster.vue,header,cldhdmst,auditdtime,審核時間,Audit Time,Thời gian kiểm tra,10,,,,,,,,,
+CldhdMaster.vue,header,cldhdmst,dtime,輸入時間,Input Time,Thời gian nhập,9,,,,,,,,,datetime
+CldhdMaster.vue,header,cldhdmst,auditdtime,審核時間,Audit Time,Thời gian kiểm tra,10,,,,,,,,,datetime
 CldhdDetails.vue,label,cldhdmst,supplyno,供方編碼,Provider Code,Mã nhà cung cấp,,optional,FALSE,FALSE,icon-text-field,6,,,,
 CldhdDetails.vue,label,cldhdmst,danno,訂購單號,Purchase Order No.,Số đơn đặt hàng,,fixed,FALSE,FALSE,text-field,6,,,,
 CldhdDetails.vue,label,supply,supplyname,供方名稱,Provider Name,Tên nhà cung cấp,,optional,FALSE,FALSE,text-field,6,,,,
@@ -191,15 +191,15 @@ CllldMaster.vue,filter,cllldmst,danno,出庫單號,Outbound Order Number,Số ph
 CllldMaster.vue,filter,cllldmst,dannobase,原始單號,Original Order No.,Số đơn gốc,,inputable,,TRUE,text-field,,,,,
 CllldMaster.vue,filter,cllldmst,kind,類別,Category,Loại,,inputable,,TRUE,select,,,,,
 CllldMaster.vue,filter,cllldmst,maker,制單,Maker,Người lập,,inputable,,TRUE,text-field,,,,,
-CllldMaster.vue,header,cllldmst,ddate,日期,Date,Ngày,1,,,,,,,,,
+CllldMaster.vue,header,cllldmst,ddate,日期,Date,Ngày,1,,,,,,,,,date
 CllldMaster.vue,header,cllldmst,danno,單號,Order Number,Mã đơn,2,,,,,,,,,
 CllldMaster.vue,header,cllldmst,dannobase,原始單號,Original Order No.,Số đơn gốc,3,,,,,,,,,
 CllldMaster.vue,header,cllldmst,kind,類別,Category,Loại,4,,,,,,,,,
 CllldMaster.vue,header,cllldmst,demo,備注,Remark,Ghi chú,5,,,,,,,,,
 CllldMaster.vue,header,cllldmst,maker,制單,Maker,Người lập,6,,,,,,,,,
 CllldMaster.vue,header,cllldmst,audit,審核,Audit,Kiểm tra,7,,,,,,,,,
-CllldMaster.vue,header,cllldmst,dtime,輸入時間,Input Time,Thời gian nhập,8,,,,,,,,,
-CllldMaster.vue,header,cllldmst,auditdtime,審核時間,Audit Time,Thời gian kiểm tra,9,,,,,,,,,
+CllldMaster.vue,header,cllldmst,dtime,輸入時間,Input Time,Thời gian nhập,8,,,,,,,,,datetime
+CllldMaster.vue,header,cllldmst,auditdtime,審核時間,Audit Time,Thời gian kiểm tra,9,,,,,,,,,datetime
 CllldDetails.vue,label,cllldmst,danno,領料單號,Picking List Number,Số phiếu lĩnh liệu,,fixed,FALSE,FALSE,text-field,6,,,,
 CllldDetails.vue,label,cllldmst,kind,類別,Category,Loại,,optional,FALSE,FALSE,select,6,,,,
 CllldDetails.vue,label,cllldmst,dannobase,原始單號,Original Order No.,Số đơn gốc,,inputable,TRUE,TRUE,text-field,6,,,,

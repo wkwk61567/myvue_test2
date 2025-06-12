@@ -9,7 +9,7 @@
       :isDeleteOrderDisabled="isDeleteOrderDisabled"
       :toggleAudit="toggleAudit"
       :isToggleAuditDisabled="isToggleAuditDisabled"
-      :exportExcel="exportExcel"
+      :exportExcel="() => utils.exportExcel(results.value, headers.value, '收貨單明細', '收貨單明細')"
       :isExportExcelDisabled="isExportExcelDisabled"
       :isButtonsCRUDPVisible="mode === 'view'"
     />
@@ -48,7 +48,7 @@
                       field.componentType
                     )
                   "
-                  :style="{ backgroundColor: INPUT_COLOR[field.inputType] }"
+                  :style="{ backgroundColor: INPUT_COLORS[field.inputType] }"
                   :append-inner-icon="field.icon"
                   @click:append-inner="field.onClick"
                   :error="utils.isFormError(mode, field, form[field.column])"
@@ -64,7 +64,7 @@
                   v-model="form[field.column]"
                   :label="field.name"
                   :readonly="utils.isReadonly(mode, field.inputType, field.isEditable, field.componentType)"
-                  :style="{ backgroundColor: INPUT_COLOR[field.inputType] }"
+                  :style="{ backgroundColor: INPUT_COLORS[field.inputType] }"
                   v-bind="field.componentType === 'checkbox'
                     ? { disabled: utils.isReadonly(mode, field.inputType, field.isEditable, field.componentType) }
                     : field.componentType === 'select'
@@ -146,7 +146,7 @@
           <v-hover v-slot:default="{ isHovering, props: hoverProps }">
             <tr
               v-bind="hoverProps"
-              :style="isHovering ? { backgroundColor: '#f5f5f5' } : {}"
+              :style="isHovering ? { backgroundColor: HOVER_COLOR } : {}"
             >
                <!-- 編輯按鈕(筆或勾勾)和刪除按鈕 -->
               <template v-if="mode !== 'view'">
@@ -160,7 +160,7 @@
               <template v-for="header in headers" :key="header.key">
                 <!-- jhpcs和jhkg做特殊處理 -->
                 <td v-if="header.key === 'header.cljhditm.jhpcs'"
-                  :style="{ backgroundColor: INPUT_COLOR[labels[header.key].inputType] }"
+                  :style="{ backgroundColor: INPUT_COLORS[labels[header.key].inputType] }"
                 >
                   <v-text-field
                     v-model="item[header.key]"
@@ -179,7 +179,7 @@
                   ></v-text-field>
                 </td>
                 <td v-else-if="header.key === 'header.cljhditm.jhkg'"
-                  :style="{ backgroundColor: !(item.spkindno === '3' && (item.clkind === '板料' || item.clkind === '鋁擠型')) ? INPUT_COLOR['fixed'] : INPUT_COLOR['inputable'] }">
+                  :style="{ backgroundColor: !(item.spkindno === '3' && (item.clkind === '板料' || item.clkind === '鋁擠型')) ? INPUT_COLORS['fixed'] : INPUT_COLORS['inputable'] }">
                   <v-text-field
                     v-model="item['header.cljhditm.jhkg']"
                     type="text"
@@ -197,7 +197,7 @@
                   ></v-text-field>
                 </td>
                 <td v-else
-                  :style="{ backgroundColor: INPUT_COLOR[labels[header.key].inputType] }"
+                  :style="{ backgroundColor: INPUT_COLORS[labels[header.key].inputType] }"
                   :class="labels[header.key]?.dataType === 'number' ? 'number-td' : ''"
                 >
                 {{ item[header.key] }}
@@ -213,13 +213,13 @@
             <template v-for="header in displayHeaders" :key="header.key">
               <td
                 v-if="columnsForSum.includes(header.key)"
-                :style="{ backgroundColor: INPUT_COLOR['fixed'] }"
+                :style="{ backgroundColor: INPUT_COLORS['fixed'] }"
               >
                 {{ utils.calculateColumnSum(results, header.key) }}
               </td>
               <td
                 v-else
-                :style="{ backgroundColor: INPUT_COLOR['fixed'] }"
+                :style="{ backgroundColor: INPUT_COLORS['fixed'] }"
               >
                 <!-- 不需要加總的欄位保持空白 -->
               </td>
@@ -246,18 +246,17 @@
 <script setup>
 import { ref, reactive, computed, onMounted, inject } from "vue";
 import { useRouter } from "vue-router";
-import { INPUT_COLOR } from "@/config.js";
-import { API_BASE_URL } from "@/config.js";
+import { INPUT_COLORS, HOVER_COLOR } from "@/config.js";
 import * as utils from "@/utils/utils.js";
 import ButtonsCRUDP from "@/components/ButtonsCRUDP.vue";
 import ButtonsSaveDiscard from "@/components/ButtonsSaveDiscard.vue";
 import SupplyDialog from "@/components/SupplyDialog.vue";
 import CallOrderDialog from "@/components/CallOrderDialog.vue";
-import * as XLSX from "xlsx";
 import { useCheckButtonFlags } from "@/composables/useCheckButtonFlags.js";
 import { useI18nHeadersLabels } from "@/composables/useI18nHeadersLabels.js";
 import { useOrderDialog } from "@/composables/useOrderDialog.js";
 import { useFieldValidate } from "@/composables/useFieldValidate.js";
+import { useSupplyDialog } from "@/composables/useSupplyDialog.js";
 
 const props = defineProps({
   danno: String,
@@ -274,8 +273,8 @@ const form = reactive({
   danno: props.danno, // 收貨單號 從url接收
   supplyno: "", // 供方編碼
   supplyname: "", // 供方名稱
-  spkindname: null, // 收貨類別，預設為空
-  ckkind: null, // 倉庫類別
+  spkindname: "", // 收貨類別
+  ckkind: "", // 倉庫類別
   dannobase: "", // 原始單號
   pjdno: "", // 驗收單號
   yjdno: "", // 請款單號 (暫不使用)
@@ -303,18 +302,11 @@ const idCurrent = ref(0); // 目前最新的一筆row的 id
 
 const reset = () => {
   // 重設所有欄位(原本會在initializeData中加載的變數)
-  form.supplyno = "";
-  form.supplyname = "";
-  form.spkindname = null;
-  form.ckkind = null;
-  form.dannobase = "";
-  form.pjdno = "";
-  form.qcnot = true;
-  form.ddate = "";
-  form.ttime = "";
-  form.demo = "";
-  form.maker = "";
-  form.audit = "";
+  
+  Object.keys(form).forEach(key => {
+    form[key] = "";
+  }); // 將所有 form 屬性設為空字串
+  form.qcnot = true; // 免檢，預設勾選
   results.value = [];
   ckkindOptions.value = [];
   idLastInDB.value = "0"; // 重置最後一筆已儲存的row的 id
@@ -440,6 +432,13 @@ const initializeData = async () => {
   // 接收查詢結果
   results.value = data["cljhditm"];
 
+  // 排序
+  results.value.sort((a, b) => {
+    const idA = String(a["header.cljhditm.id"] || "");
+    const idB = String(b["header.cljhditm.id"] || "");
+    return idA.localeCompare(idB, { numeric: true });
+  });
+
   idLastInDB.value = data["cljhditm"].at(-1)["header.cljhditm.id"]; // 取得DB最後一筆的 id
   console.log("最後一筆的 id：", idLastInDB.value);
   idCurrent.value = idLastInDB.value; // 設置目前的 id 為DB最後一筆的 id
@@ -466,43 +465,14 @@ const initializeData = async () => {
   await checkButtonFlags(); // 檢查按鈕狀態
 };
 
-// 下面與...按鈕相關的變數與三個函式應該可以移到composables裡面?
-const dialog = ref(false); // ...的小視窗是否顯示, 應該改叫openQuerySupplyDialog
-const supplyQuery = ref(""); // 用來存儲供方查詢條件
-const tempSupplykind = ref(""); // 用來存儲供方類別查詢條件
-const suppliers = ref([]); // 用來存儲從API獲取的供方資料
-const filteredSuppliers = ref([]); // 用來存儲過濾後的供方列表
-
-const openDialog = async () => {
-  // 開啟...的小視窗 應該改叫openQuerySupplyDialog
-  supplyQuery.value = ""; // 清空查詢條件
-  tempSupplykind.value = ""; // 清空查詢條件
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/suppliers.php`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include", // 憑證
-    });
-    const data = await response.json();
-    console.log("查詢結果：", data);
-    suppliers.value = data;
-    filteredSuppliers.value = suppliers.value; // 初始化過濾列表為所有供方
-  } catch (error) {
-    console.error("查詢失敗", error);
-  }
-
-  dialog.value = true; // 顯示小視窗
-};
-
-const handleInputSupplyQueryAndTempSupplykind = () => {
-  // 處理供方查詢介面的查詢條件
-  filteredSuppliers.value = utils.filterSuppliers(
-    suppliers.value,
-    supplyQuery.value,
-    tempSupplykind.value
-  ); // 根據查詢條件過濾供方列表
-};
+const {
+  dialog,
+  supplyQuery,
+  tempSupplykind,
+  filteredSuppliers,
+  openDialog,
+  handleInputSupplyQueryAndTempSupplykind,
+} = useSupplyDialog(); // ...視窗的狀態和方法
 
 const selectSupplier = async (supplier) => {
   // 用戶選擇供方編碼後，將編碼放入供方編碼欄位
@@ -740,20 +710,6 @@ const updateTable = async (item, key) => {
       };
       const data = await utils.fetchData("cljhditmUpdate.php", params); // 透過api更新資料
       console.log("更新結果:", data);
-      /*
-      if (key === "header.cljhditm.jhpcs" && !(item.spkindno === '3' && (item.clkind === '板料' || item.clkind === '鋁擠型'))) {
-        // 如果不是板料, 則更新jhkg
-        const paramsJhkg = {
-          danno: form.danno,
-          id: item["header.cljhditm.id"],
-          column: "jhkg",
-          value: item["header.cljhditm.jhkg"],
-        };
-        const dataJhkg = await utils.fetchData("cljhditmUpdate.php", paramsJhkg); // 透過api更新資料
-        console.log("更新結果(jhkg):", dataJhkg);
-        alert("由於暫收數量變更, 暫收重量已自動更新");
-      }
-      */
       alert("更新完成");
     }
   }
@@ -766,29 +722,7 @@ const deleteRow = (item) => {
       alert("此項已品管入庫,不能刪除!");
       return;
     } else {
-      //目前預設免檢是打勾的, 所有保存的訂單都會自動入庫, 無法單行刪除
       alert("目前預設免檢是打勾的, 所有保存的訂單都會自動入庫, 無法單行刪除");
-      /*
-      const confirmMessage =
-      orderInDBNum.value === 1 ? "您確定要刪除整張單據嗎?" : "您確定要刪除?";
-      if (confirm(confirmMessage)) {
-        utils.cljhdDelete(form.danno, item["header.cljhditm.id"]); // 從資料庫刪除
-        alert("刪除完成");
-        const index = results.value.findIndex(
-          (result) =>
-            result["header.cljhditm.id"] === item["header.cljhditm.id"]
-        );
-        if (index !== -1) {
-          results.value.splice(index, 1); // 從 results 中移除
-          orderInDBNum.value = orderInDBNum.value - 1; // 更新行數
-          if (orderInDBNum.value === 0) {
-            //setMode("view"); // 如果刪除的是最後一行, 則切換到查看模式
-          }
-        } else {
-          console.error("Item not found in results:", item);
-        }
-      }
-      */
     }
   } else {
     // 刪除調用訂單新增的row
@@ -838,37 +772,6 @@ const toggleAudit = async () => {
   await initializeData(); // 重新加載資料
 
   await checkButtonFlags(); // 審核狀態改變後，重新檢查按鈕狀態
-};
-
-const exportExcel = () => {
-  // 導出 Excel 檔案
-
-  // 將資料轉換為適合導出的格式
-  const dataToExport = results.value.map((row) => {
-    let rowNew = {};
-    headers.value.forEach((header) => { 
-      if (header.title !== "") {
-        rowNew[header.title] = row[header.key]; // 根據 key 取值並用 title 作為新鍵名
-      }
-    });
-    return rowNew;
-  });
-
-  // 建立工作簿和工作表
-  const worksheet = XLSX.utils.json_to_sheet(dataToExport, {
-    skipHeader: false,
-  });
-
-  // 手動添加標題列
-  const headerTitles = headers.value.map((header) => header.title);
-  XLSX.utils.sheet_add_aoa(worksheet, [headerTitles], { origin: "A1" });
-
-  // 建立工作簿並附加工作表
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "收貨單明細");
-
-  // 導出文件
-  XLSX.writeFile(workbook, "收貨單明細.xlsx");
 };
 
 // 檢查按鈕是否禁用

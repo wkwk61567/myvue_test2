@@ -40,7 +40,7 @@
               <tr
                 v-bind="hoverProps"
                 @dblclick="$emit('selectOrder', item)"
-                :style="isHovering ? { backgroundColor: '#f5f5f5' } : {}"
+                :style="isHovering ? { backgroundColor: HOVER_COLOR } : {}"
               >
                 <template v-for="header in headers" :key="header.key">
                   <td :class="labels[header.key]?.dataType === 'number' ? 'number-td' : ''">{{ item[header.key] }}</td>
@@ -56,6 +56,7 @@
 
 <script setup>
 import { inject } from 'vue';
+import { HOVER_COLOR } from "@/config.js";
 import { useI18nHeadersLabels } from "@/composables/useI18nHeadersLabels";
 
 // 接收selectedLanguage 作為目前顯示的語言

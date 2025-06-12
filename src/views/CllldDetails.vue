@@ -9,7 +9,7 @@
       :isDeleteOrderDisabled="isDeleteOrderDisabled"
       :toggleAudit="toggleAudit"
       :isToggleAuditDisabled="isToggleAuditDisabled"
-      :exportExcel="exportExcel"
+      :exportExcel="() => utils.exportExcel(results.value, headers.value, '材料發料單明細', '材料發料單明細')"
       :isExportExcelDisabled="isExportExcelDisabled"
       :isButtonsCRUDPVisible="mode === 'view'"
     />
@@ -50,7 +50,7 @@
                       field.componentType
                     )
                   "
-                  :style="{ backgroundColor: INPUT_COLOR[field.inputType] }"
+                  :style="{ backgroundColor: INPUT_COLORS[field.inputType] }"
                   :append-inner-icon="field.icon"
                   @click:append-inner="field.onClick"
                   :error="utils.isFormError(mode, field, form[field.column])"
@@ -76,7 +76,7 @@
                       field.componentType
                     )
                   "
-                  :style="{ backgroundColor: INPUT_COLOR[field.inputType] }"
+                  :style="{ backgroundColor: INPUT_COLORS[field.inputType] }"
                   v-bind="
                     field.componentType === 'checkbox'
                       ? {
@@ -167,7 +167,7 @@
           <v-hover v-slot:default="{ isHovering, props: hoverProps }">
             <tr
               v-bind="hoverProps"
-              :style="isHovering ? { backgroundColor: '#f5f5f5' } : {}"
+              :style="isHovering ? { backgroundColor: HOVER_COLOR } : {}"
             >
               <!-- 刪除按鈕 -->
               <template v-if="mode !== 'view'">
@@ -183,7 +183,7 @@
                 <td
                   v-if="header.key === 'header.clllditm.gcdno'"
                   :style="{
-                    backgroundColor: INPUT_COLOR[labels[header.key].inputType],
+                    backgroundColor: INPUT_COLORS[labels[header.key].inputType],
                   }"
                 >
                   <v-text-field
@@ -199,7 +199,7 @@
                 <td
                   v-else-if="header.key === 'header.clllditm.spno'"
                   :style="{
-                    backgroundColor: INPUT_COLOR[labels[header.key].inputType],
+                    backgroundColor: INPUT_COLORS[labels[header.key].inputType],
                   }"
                 >
                   <v-text-field
@@ -215,7 +215,7 @@
                 <td
                   v-else-if="header.key === 'header.clllditm.sqpcs'"
                   :style="{
-                    backgroundColor: INPUT_COLOR[labels[header.key].inputType],
+                    backgroundColor: INPUT_COLORS[labels[header.key].inputType],
                   }"
                 >
                   <v-text-field
@@ -233,7 +233,7 @@
                 <td
                   v-else-if="header.key === 'header.clllditm.pcs'"
                   :style="{
-                    backgroundColor: INPUT_COLOR[labels[header.key].inputType],
+                    backgroundColor: INPUT_COLORS[labels[header.key].inputType],
                   }"
                 >
                   <v-text-field
@@ -253,7 +253,7 @@
                 <td
                   v-else-if="header.key === 'header.clllditm.pcsnx'"
                   :style="{
-                    backgroundColor: INPUT_COLOR[labels[header.key].inputType],
+                    backgroundColor: INPUT_COLORS[labels[header.key].inputType],
                   }"
                 >
                   <v-text-field
@@ -273,7 +273,7 @@
                 <td
                   v-else-if="header.key === 'header.clllditm.cbprice'"
                   :style="{
-                    backgroundColor: INPUT_COLOR[labels[header.key].inputType],
+                    backgroundColor: INPUT_COLORS[labels[header.key].inputType],
                   }"
                 >
                   <v-text-field
@@ -291,7 +291,7 @@
                 <td
                   v-else-if="header.key === 'header.clllditm.note'"
                   :style="{
-                    backgroundColor: INPUT_COLOR[labels[header.key].inputType],
+                    backgroundColor: INPUT_COLORS[labels[header.key].inputType],
                   }"
                 >
                   <v-text-field
@@ -306,7 +306,7 @@
                 <td
                   v-else
                   :style="{
-                    backgroundColor: INPUT_COLOR[labels[header.key].inputType],
+                    backgroundColor: INPUT_COLORS[labels[header.key].inputType],
                   }"
                   :class="labels[header.key]?.dataType === 'number' ? 'number-td' : ''"
                 >
@@ -323,11 +323,11 @@
             <template v-for="header in displayHeaders" :key="header.key">
               <td
                 v-if="columnsForSum.includes(header.key)"
-                :style="{ backgroundColor: INPUT_COLOR['fixed'] }"
+                :style="{ backgroundColor: INPUT_COLORS['fixed'] }"
               >
                 {{ utils.calculateColumnSum(results, header.key) }}
               </td>
-              <td v-else :style="{ backgroundColor: INPUT_COLOR['fixed'] }">
+              <td v-else :style="{ backgroundColor: INPUT_COLORS['fixed'] }">
                 <!-- 不需要加總的欄位保持空白 -->
               </td>
             </template>
@@ -361,13 +361,12 @@ import {
   nextTick,
 } from "vue";
 import { useRouter } from "vue-router";
-import { INPUT_COLOR } from "@/config.js";
+import { INPUT_COLORS, HOVER_COLOR } from "@/config.js";
 import * as utils from "@/utils/utils.js";
 import ButtonsCRUDP from "@/components/ButtonsCRUDP.vue";
 import ButtonsSaveDiscard from "@/components/ButtonsSaveDiscard.vue";
 import ScgcdDialog from "@/components/ScgcdDialog.vue";
 import SpDialog from "@/components/SpDialog.vue";
-import * as XLSX from "xlsx";
 import { useCheckButtonFlags } from "@/composables/useCheckButtonFlags.js";
 import { useI18nHeadersLabels } from "@/composables/useI18nHeadersLabels.js";
 import { useFieldValidate } from "@/composables/useFieldValidate.js";
@@ -588,13 +587,9 @@ const idCurrent = ref(0); // 目前最新的一筆row的 id
 
 const reset = () => {
   // 重設所有欄位(原本會在initializeData中加載的變數)
-  form.danno = "";
-  form.kind = "";
-  form.dannobase = "";
-  form.ddate = "";
-  form.demo = "";
-  form.maker = "";
-  form.audit = "";
+  Object.keys(form).forEach(key => {
+    form[key] = "";
+  }); // 將所有 form 屬性設為空字串
   results.value = [];
   idLastInDB.value = "0"; // 重置最後一筆已儲存的row的 id
   idCurrent.value = 0; // 重置目前最新的一筆row的 id
@@ -616,8 +611,8 @@ const setMode = async (newMode) => {
       prefix: `D_ML`,
       table: "cllldmst",
     };
-    const data = await utils.fetchData("getSerialNumber.php", params);
-    form.danno = data[0].NewDanno;
+    const dannoData = await utils.fetchData("getSerialNumber.php", params);
+    form.danno = dannoData[0].NewDanno;
 
     // 取得製單
     const userData = await utils.fetchData("checkAuthenticated.php");
@@ -689,7 +684,7 @@ const initializeData = async () => {
   results.value.sort((a, b) => {
     const idA = String(a["header.clllditm.id"] || "");
     const idB = String(b["header.clllditm.id"] || "");
-    return idA.localeCompare(idB, "zh-Hant", { numeric: true });
+    return idA.localeCompare(idB, { numeric: true });
   });
 
   idLastInDB.value = data["clllditm"].at(-1)["header.clllditm.id"]; // 取得DB最後一筆的 id
@@ -979,37 +974,6 @@ const toggleAudit = async () => {
   await checkButtonFlags(); // 審核狀態改變後，重新檢查按鈕狀態
 };
 
-const exportExcel = () => {
-  // 導出 Excel 檔案
-
-  // 將資料轉換為適合導出的格式
-  const dataToExport = results.value.map((row) => {
-    let rowNew = {};
-    headers.value.forEach((header) => {
-      if (header.title !== "") {
-        rowNew[header.title] = row[header.key]; // 根據 key 取值並用 title 作為新鍵名
-      }
-    });
-    return rowNew;
-  });
-
-  // 建立工作簿和工作表
-  const worksheet = XLSX.utils.json_to_sheet(dataToExport, {
-    skipHeader: false,
-  });
-
-  // 手動添加標題列
-  const headerTitles = headers.value.map((header) => header.title);
-  XLSX.utils.sheet_add_aoa(worksheet, [headerTitles], { origin: "A1" });
-
-  // 建立工作簿並附加工作表
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "材料發料單明細");
-
-  // 導出文件
-  XLSX.writeFile(workbook, "材料發料單明細.xlsx");
-};
-
 // 檢查按鈕是否禁用
 const {
   isAddDisabled,
@@ -1083,13 +1047,13 @@ const tableCellStyles = computed(() => {
       styles[`${key}_td`] = {
         position: "sticky",
         left: `${stickyLeftMap.value[key] || 0}px`,
-        background: INPUT_COLOR[labels.value[key]?.inputType],
+        background: INPUT_COLORS[labels.value[key]?.inputType],
         zIndex: 2,
         minWidth: `${minWidthMap.value[key] || 0}px`,
       };
     } else {
       styles[`${key}_td`] = {
-        backgroundColor: INPUT_COLOR[labels.value[key]?.inputType],
+        backgroundColor: INPUT_COLORS[labels.value[key]?.inputType],
         minWidth: `${minWidthMap.value[key] || 0}px`,
       };
     }

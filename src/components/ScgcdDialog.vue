@@ -123,7 +123,7 @@
               <tr
                 v-bind="hoverProps"
                 @dblclick="$emit('selectScgcd', item)"
-                :style="isHovering ? { backgroundColor: '#f5f5f5' } : {}"
+                :style="isHovering ? { backgroundColor: HOVER_COLOR } : {}"
               >
                 <template v-for="header in headers" :key="header.key">
                   <td v-if="labels[header.key].componentType === 'checkbox'">
@@ -147,6 +147,7 @@
 
 <script setup>
 import { inject, ref, watch } from "vue";
+import { HOVER_COLOR } from "@/config.js";
 import * as utils from "@/utils/utils.js";
 import { useI18nHeadersLabels } from "@/composables/useI18nHeadersLabels.js";
 

@@ -1,6 +1,7 @@
 // utils.js
 import { API_BASE_URL } from "@/config";
 import axios from "axios";
+import * as XLSX from "xlsx";
 
 export function sleep(ms) {
   // 測試用 可以用await sleep(1000) 來暫停1秒
@@ -266,7 +267,7 @@ export async function checkFlag(requiredFlag, requiredFormno) {
 
 export async function fetchData(apiFileName, params) {
   // 通用的API請求函數
-  console.log(`傳送至:${apiFileName}, 參數:`, params); 
+  console.log(`傳送至:${apiFileName}, 參數:`, params);
   try {
     const response = await fetch(`${API_BASE_URL}/api/${apiFileName}`, {
       method: "POST",
@@ -328,3 +329,46 @@ export function isReadonly(mode, inputType, isEditable, componentType) {
     (mode === "edit" && !isEditable)
   );
 }
+
+export const formatDateTimeFields = (results, labels) => {
+  // 轉換日期和時間欄位
+  results.forEach((item) => {
+    // 根據dataType來決定如何處理時間格式
+    for (let key in item) {
+      if (labels[key]?.dataType === "date") {
+        // 如果是日期類型，則切割成 yyyy-mm-dd 格式
+        item[key] = item[key] ? item[key].date.split(" ")[0] : "";
+      } else if (labels[key]?.dataType === "datetime") {
+        // 如果是日期時間類型，則切割成 yyyy-mm-dd hh:mm:ss 格式
+        item[key] = item[key] ? item[key].date.split(".")[0] : "";
+      }
+    }
+  });
+};
+
+export const exportExcel = (data, headers, name = "export") => {
+  // 將資料轉換為適合導出的格式
+  const dataToExport = data.map((row) => {
+    let newRow = {};
+    headers.forEach((header) => {
+      newRow[header.title] = row[header.key]; // 根據 key 取值並用 title 作為新鍵名
+    });
+    return newRow;
+  });
+
+  // 建立工作簿和工作表
+  const worksheet = XLSX.utils.json_to_sheet(dataToExport, {
+    skipHeader: false,
+  });
+
+  // 設置凍結窗格(無效)
+  //worksheet["!freeze"] = { xSplit: 0, ySplit: 1 };
+  //console.log("worksheet:", worksheet);
+
+  // 建立工作簿並附加工作表
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, name);
+
+  // 導出文件
+  XLSX.writeFile(workbook, `${name}.xlsx`);
+};

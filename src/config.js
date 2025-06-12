@@ -12,12 +12,14 @@ const dictionary = {
 
 
 export const API_BASE_URL = "http://" + window.location.hostname;
-export const INPUT_COLOR = {
+export const INPUT_COLORS = {
   inputable: "#ffffff",
   optional: "#dddddd",
   fixed: "#aaaaaa",
   unused: "#888888",
 };
+export const HOVER_COLOR = "#f5f5f5";
+export const SELECTED_COLOR = "#d3d3d3";
 export const LANGUAGE_OPTIONS = [
   { title: "繁體中文", key: "zh-TW" },
   { title: "English", key: "en" },
