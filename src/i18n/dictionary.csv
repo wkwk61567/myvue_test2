@@ -35,7 +35,7 @@ CljhdMaster.vue,header,cljhdmst,supplyno,供方編碼,Supplier Code,Mã nhà cun
 CljhdMaster.vue,header,supply,supplyname,供方名稱,Supplier Name,Tên nhà cung cấp,6,,,,,,,,,
 CljhdMaster.vue,header,cljhdmst,spkindname,收貨類別,Receiving Type,Loại nhận hàng,7,,,,,,,,,
 CljhdMaster.vue,header,cljhdmst,yjdno,清款單號,Payment Order No.,Số đơn thanh toán,8,,,,,,,,,
-CljhdMaster.vue,header,cljhdmst,qcnot,免檢,Exempt,Miễn kiểm tra,9,,,,,,,,,
+CljhdMaster.vue,header,cljhdmst,qcnot,免檢,Exempt,Miễn kiểm tra,9,,,,checkbox,,,,,
 CljhdMaster.vue,header,cljhdmst,demo,備注,Remark,Ghi chú,10,,,,,,,,,
 CljhdMaster.vue,header,cljhdmst,maker,制單,Maker,Người lập,11,,,,,,,,,
 CljhdMaster.vue,header,cljhdmst,audit,審核,Audit,Kiểm tra,12,,,,,,,,,
@@ -208,20 +208,20 @@ CllldDetails.vue,label,cllldmst,demo,備注,Remark,Ghi chú,,inputable,TRUE,TRUE
 CllldDetails.vue,label,cllldmst,maker,制單,Maker,Người lập,,fixed,FALSE,TRUE,text-field,4,,,,
 CllldDetails.vue,label,cllldmst,audit,審核,Audit,Kiểm tra,,fixed,FALSE,TRUE,text-field,4,,,,
 CllldDetails.vue,header,clllditm,id,序,Sequence,Trình tự,1,fixed,FALSE,FALSE,,,,,,
-CllldDetails.vue,header,clllditm,gcdno,工令單號,Work Order Number,Số lệnh sản xuất,2,optional,TRUE,TRUE,,,,,,
-CllldDetails.vue,header,clllditm,spno,材料編碼,Material Code,Mã vật liệu,3,optional,TRUE,FALSE,,,,nonEmptyString,,
+CllldDetails.vue,header,clllditm,gcdno,工令單號,Work Order Number,Số lệnh sản xuất,2,optional,TRUE,TRUE,text-field,,,,,
+CllldDetails.vue,header,clllditm,spno,材料編碼,Material Code,Mã vật liệu,3,optional,TRUE,FALSE,text-field,,,nonEmptyString,,
 CllldDetails.vue,header,sp,splk,廠商編碼,Vendor Code,Mã nhà cung cấp,4,unused,FALSE,TRUE,,,,,,
 CllldDetails.vue,header,sp,spspec,規格,Specification,Quy cách,5,fixed,FALSE,TRUE,,,,,,
 CllldDetails.vue,header,sp,spunit,單位,Unit,Đơn vị,6,fixed,FALSE,TRUE,,,,,,
 CllldDetails.vue,header,clllditm,kcpcs,保稅庫存數,Bonded Inventory Quantity,Số lượng tồn kho bảo thuế,7,fixed,FALSE,TRUE,,,,,,number
 CllldDetails.vue,header,clllditm,kcpcsnx,內銷庫存數,Domestic Inventory Quantity,Số lượng tồn kho nội địa,8,fixed,FALSE,TRUE,,,,,,number
 CllldDetails.vue,header,clllditm,yfpcs,應發數,Quantity to be Issued,Số lượng cần xuất,9,fixed,FALSE,TRUE,,,,,,number
-CllldDetails.vue,header,clllditm,sqpcs,申領數,Applied Quantity,Số lượng yêu cầu,10,inputable,TRUE,TRUE,,,,positive,,number
-CllldDetails.vue,header,clllditm,pcs,保稅實發數,Actual Bonded Issued Quantity,Số lượng thực tế xuất (bảo thuế),11,inputable,TRUE,TRUE,,,,atLeastOnePositive,actualNumbers,number
-CllldDetails.vue,header,clllditm,pcsnx,內銷實發數,Actual Domestic Issued Qty,Số lượng thực tế xuất (nội địa),12,inputable,TRUE,TRUE,,,,atLeastOnePositive,actualNumbers,number
-CllldDetails.vue,header,clllditm,cbprice,單價,Unit Price,Đơn giá,13,unused,TRUE,TRUE,,,,positive,,number
+CllldDetails.vue,header,clllditm,sqpcs,申領數,Applied Quantity,Số lượng yêu cầu,10,inputable,TRUE,TRUE,text-field,,,positive,,number
+CllldDetails.vue,header,clllditm,pcs,保稅實發數,Actual Bonded Issued Quantity,Số lượng thực tế xuất (bảo thuế),11,inputable,TRUE,TRUE,text-field,,,atLeastOnePositive,actualNumbers,number
+CllldDetails.vue,header,clllditm,pcsnx,內銷實發數,Actual Domestic Issued Qty,Số lượng thực tế xuất (nội địa),12,inputable,TRUE,TRUE,text-field,,,atLeastOnePositive,actualNumbers,number
+CllldDetails.vue,header,clllditm,cbprice,單價,Unit Price,Đơn giá,13,unused,TRUE,TRUE,text-field,,,positive,,number
 CllldDetails.vue,header,NA,pay,金額,Amount,Số tiền,14,unused,FALSE,TRUE,,,,,,number
-CllldDetails.vue,header,clllditm,note,備註,Remark,Ghi chú,15,inputable,TRUE,TRUE,,,,,,
+CllldDetails.vue,header,clllditm,note,備註,Remark,Ghi chú,15,inputable,TRUE,TRUE,text-field,,,,,
 ScgcdDialog.vue,pageTitle,NA,scgcdQuery,工令單物控向導,WO Material Control Wizard,Hướng dẫn kiểm soát vật tư WO,,,,,,,,,,
 ScgcdDialog.vue,filter,scgcdmst,gcdno,工令單號,Work Order Number,Số lệnh sản xuất,,inputable,,,,,,,,
 ScgcdDialog.vue,filter,scgcdmst,spno,成品料號,Finished Product Code,Mã thành phẩm,,inputable,,,,,,,,

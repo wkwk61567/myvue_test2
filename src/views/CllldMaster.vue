@@ -110,7 +110,13 @@
               "
             >
               <template v-for="header in headers" :key="header.key">
-                <td>{{ item[header.key] }}</td>
+                <td v-if="labels[header.key].componentType === 'checkbox'">
+                    <v-checkbox
+                      :model-value="item[header.key] === 1"
+                      disabled
+                    ></v-checkbox>
+                  </td>
+                  <td v-else :class="labels[header.key]?.dataType === 'number' ? 'number-td' : ''" >{{ item[header.key] }}</td>
               </template>
             </tr>
           </v-hover>

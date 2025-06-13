@@ -52,7 +52,7 @@
                   :style="{ backgroundColor: INPUT_COLORS[field.inputType] }"
                   :append-inner-icon="field.icon"
                   @click:append-inner="field.onClick"
-                  :error="utils.isFormError(mode, field, form[field.column])"
+                  :error="isFormError(mode, field, form[field.column])"
                 />
               </template>
               <template v-else>
@@ -73,7 +73,7 @@
                       : field.componentType === 'date'
                         ? { type: 'date' }
                         : {}"
-                  :error="utils.isFormError(mode, field, form[field.column])"
+                  :error="isFormError(mode, field, form[field.column])"
                   @change="updateForm(field)"
                   @update:modelValue="field.componentType === 'select' ? updateForm(field) : null"
                 />
@@ -108,7 +108,7 @@
           @update:orderQuery[spspec]="orderQuery.spspec = $event"
           :orderFiltered="orderFiltered"
           @handleInputOrderQuery="handleInputOrderQuery"
-          @selectOrder="(item) => selectOrder(item, form.ddate)"
+          @selectOrder="(item) => selectOrder(item, form.ddate, focusNextInvalidField)"
         ></CallOrderDialog>
       </v-card-text>
     </v-card>
@@ -215,6 +215,7 @@
               <td
                 v-if="columnsForSum.includes(header.key)"
                 :style="{ backgroundColor: INPUT_COLORS['fixed'] }"
+                :class="labels[header.key]?.dataType === 'number' ? 'number-td' : ''"
               >
                 {{ utils.calculateColumnSum(results, header.key) }}
               </td>
@@ -314,34 +315,6 @@ const reset = () => {
   idCurrent.value = 0; // 重置目前最新的一筆row的 id
 };
 
-// 驗證表格欄位是否已填寫
-const fieldsRequired = computed(() => {
-  const fieldsArray = [];
-  for (const key in labels.value) {
-    if (key.startsWith('header.') && labels.value[key].isAllowBlank !== true) {
-      fieldsArray.push(key);
-    }
-  }
-  return fieldsArray;
-}); // 表格中的必填欄位
-console.log("fieldsRequired:", fieldsRequired.value);
-const fieldRefs = reactive({});
-const setFieldRef = (refName) => (el) => {
-  if (el) {
-    fieldRefs[refName] = el;
-  }
-};
-const {
-  isFieldValid,
-  isRowFieldsValid,
-  isAnyFieldInvalid,
-  handleFocus,
-  handleBlur,
-  isFieldDisabled,
-  focusNextInvalidField,
-  isFocusMechanismActive,
-} = useFieldValidate(results, fieldsRequired.value, fieldRefs, labels.value);
-
 const {
   isCallOrderDialogVisible, // 調用訂單介面(CallOrderDialog)是否顯示
   orderQuery, // 用來存儲調用訂單介面(CallOrderDialog)的訂單查詢條件
@@ -349,7 +322,7 @@ const {
   openCallOrdersDialog, // 打開調用訂單介面(CallOrderDialog)
   handleInputOrderQuery, // 處理調用訂單介面(CallOrderDialog)的查詢條件
   selectOrder, // 暫時儲存訂單到下方的表格
-} = useOrderDialog(results, idCurrent, focusNextInvalidField);
+} = useOrderDialog(results, idCurrent);
 
 const orderInDBNum = ref(0); // 原本的行數 用來判斷是不是只剩一個row 是的話會在刪除此row後刪除整張收貨單
 
@@ -410,7 +383,7 @@ const displayHeaders = computed(() => {
 }); // 加入編輯和刪除按鈕(以後的版本會把編輯按鈕移除)
 
 const initializeData = async () => {
-  // 加載表格內的資料
+  // 加載資料
   const params = {
     danno: form.danno,
   };
@@ -437,10 +410,9 @@ const initializeData = async () => {
   idLastInDB.value = data["table"].at(-1)["header.cljhditm.id"]; // 取得DB最後一筆的 id
   console.log("最後一筆的 id：", idLastInDB.value);
   idCurrent.value = idLastInDB.value; // 設置目前的 id 為DB最後一筆的 id
-
   Object.keys(form).forEach(key => {
-    form[key] = data["form"][0][key] || form[key];
-  }); // 將所有 form 屬性設為查詢結果的對應值，如果沒有則不變
+    form[key] = data["form"][0][key];
+  }); // 將所有 form 欄位的值設為查詢結果的對應值
   form.qcnot = form.qcnot === 1; // 免檢，轉換為布林值
   form.ddate = form.ddate.date.split(" ")[0]; // 將日期切割成 YYYY-MM-DD
 
@@ -808,20 +780,27 @@ const formRows = computed(() => {
 });
 console.log("formRows:", formRows.value);
 
-const isFormComplete = computed(() => {
-  // 以後其他頁面可能也會用到, 到時候應該可以移到utils裡面
-  // 檢查form的欄位是否有空值
-  for (let row of formRows.value) {
-    for (let field of row) {
-      if (!field.isAllowBlank && (form[field.column] === null || form[field.column] === "")) {
-        return false; // 有空值，返回false
-      }
-    }
-  }
-  return true; // 所有欄位都有值，返回true
-});
-
 const limitPercentage = ref(0); // 收貨數量的限制百分比
+
+// 驗證表格欄位是否已填寫
+const fieldRefs = reactive({});
+const setFieldRef = (refName) => (el) => {
+  if (el) {
+    fieldRefs[refName] = el;
+  }
+};
+const {
+  isFieldValid,
+  isRowFieldsValid,
+  isAnyFieldInvalid,
+  handleFocus,
+  handleBlur,
+  isFieldDisabled,
+  focusNextInvalidField,
+  isFocusMechanismActive,
+  isFormError,
+  isFormComplete,
+} = useFieldValidate(results, form, formRows.value, fieldRefs, labels.value);
 
 // --- Lifecycle Hooks ---
 onMounted(async () => {
@@ -838,18 +817,7 @@ onMounted(async () => {
 
   await setMode("view");
 
-  // 檢查 URL 參數，自動切換到對應的模式
-  const urlParams = new URLSearchParams(window.location.search);
-  const modeParam = urlParams.get("mode");
-  if (modeParam) {
-    if (modeParam === "add" || modeParam === "edit") {
-      await setMode(modeParam); // 切換到新增或編輯模式
-    }
-    // 從 URL 中刪除 mode 參數
-    const urlCurrent = new URL(window.location);
-    urlCurrent.searchParams.delete("mode");
-    window.history.replaceState({}, "", urlCurrent);
-  }
+  utils.handleUrlParams(setMode); // 處理URL中的參數，並自動切換到對應的模式
 });
 
 </script>

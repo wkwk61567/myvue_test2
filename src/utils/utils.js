@@ -303,22 +303,6 @@ export function getCurrentDateTime() {
   return [date, time]; // 返回日期和時間
 }
 
-export function isFormError(mode, field, value) {
-  return (
-    mode !== "view" &&
-    !(
-      field.inputType === "fixed" ||
-      (field.inputType === "optional" &&
-        !(
-          field.componentType === "icon-text-field" ||
-          field.componentType === "select"
-        ))
-    ) &&
-    !field.isAllowBlank &&
-    (value === "" || value === null)
-  );
-}
-
 export function isReadonly(mode, inputType, isEditable, componentType) {
   //是否唯讀
   return (
@@ -372,3 +356,18 @@ export const exportExcel = (data, headers, name = "export") => {
   // 導出文件
   XLSX.writeFile(workbook, `${name}.xlsx`);
 };
+
+export async function handleUrlParams(setMode) {
+  //檢查 URL 參數，自動切換到對應的模式，並從 URL 中移除 mode 參數
+  const urlParams = new URLSearchParams(window.location.search);
+  const modeParam = urlParams.get("mode");
+  if (modeParam) {
+    if (modeParam === "add" || modeParam === "edit") {
+      await setMode(modeParam); // 切換到新增或編輯模式
+    }
+    // 從 URL 中刪除 mode 參數
+    const urlCurrent = new URL(window.location);
+    urlCurrent.searchParams.delete("mode");
+    window.history.replaceState({}, "", urlCurrent);
+  }
+}

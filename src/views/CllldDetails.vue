@@ -54,7 +54,7 @@
                   :style="{ backgroundColor: INPUT_COLORS[field.inputType] }"
                   :append-inner-icon="field.icon"
                   @click:append-inner="field.onClick"
-                  :error="utils.isFormError(mode, field, form[field.column])"
+                  :error="isFormError(mode, field, form[field.column])"
                 />
               </template>
               <template v-else>
@@ -98,7 +98,7 @@
                       ? { type: 'date' }
                       : {}
                   "
-                  :error="utils.isFormError(mode, field, form[field.column])"
+                  :error="isFormError(mode, field, form[field.column])"
                   @change="updateForm(field)"
                   @update:modelValue="field.componentType === 'select' ? updateForm(field) : null"
                 />
@@ -182,127 +182,21 @@
               <!-- 用v-if和v-else-if做特殊處理 -->
               <template v-for="header in headers" :key="header.key">
                 <td
-                  v-if="header.key === 'header.clllditm.gcdno'"
+                  v-if="specialTableColumns[header.key]"
                   :style="{
                     backgroundColor: INPUT_COLORS[labels[header.key].inputType],
                   }"
                 >
-                  <v-text-field
+                  <component
+                    :is="labels[header.key].componentType === 'checkbox'
+                      ? 'v-checkbox'
+                      : labels[header.key].componentType === 'select'
+                        ? 'v-select'
+                        : 'v-text-field'"
                     v-model="item[header.key]"
-                    readonly
-                    :append-inner-icon="
-                      mode !== 'view' ? 'mdi-dots-horizontal-circle' : null
-                    "
-                    @click:append-inner="form.kind === '包材領料' ? null : openScgcdDialog()"
-                    :class="labels[header.key]?.dataType === 'number' ? 'number-field' : ''"
-                  ></v-text-field>
-                </td>
-                <td
-                  v-else-if="header.key === 'header.clllditm.spno'"
-                  :style="{
-                    backgroundColor: INPUT_COLORS[labels[header.key].inputType],
-                  }"
-                >
-                  <v-text-field
-                    v-model="item[header.key]"
-                    readonly
-                    :append-inner-icon="
-                      mode !== 'view' ? 'mdi-dots-horizontal-circle' : null
-                    "
-                    @click:append-inner="item['header.clllditm.gcdno'] === '' ? openSpDialog(item) : openScgcdDialog(item['header.clllditm.gcdno'])"
-                    :class="labels[header.key]?.dataType === 'number' ? 'number-field' : ''"
-                  ></v-text-field>
-                </td>
-                <td
-                  v-else-if="header.key === 'header.clllditm.sqpcs'"
-                  :style="{
-                    backgroundColor: INPUT_COLORS[labels[header.key].inputType],
-                  }"
-                >
-                  <v-text-field
-                    v-model="item[header.key]"
-                    :readonly="
-                      mode === 'view' || isFieldDisabled(item, header.key)
-                    "
-                    @change="
-                      utils.handleField(item, header.key);
-                      updateTable(item, header.key);
-                    "
-                    :class="labels[header.key]?.dataType === 'number' ? 'number-field' : ''"
-                  ></v-text-field>
-                </td>
-                <td
-                  v-else-if="header.key === 'header.clllditm.pcs'"
-                  :style="{
-                    backgroundColor: INPUT_COLORS[labels[header.key].inputType],
-                  }"
-                >
-                  <v-text-field
-                    v-model="item[header.key]"
-                    :readonly="
-                      mode === 'view' || isFieldDisabled(item, header.key)
-                    "
-                    @change="
-                      utils.handleField(item, header.key);
-                      updateTable(item, header.key);
-                    "
-                    :error="!isRowFieldsValid(item)"
-                    :error-messages="isRowFieldsValid(item) ? null : '擇一填寫'"
-                    :class="labels[header.key]?.dataType === 'number' ? 'number-field' : ''"
-                  ></v-text-field>
-                </td>
-                <td
-                  v-else-if="header.key === 'header.clllditm.pcsnx'"
-                  :style="{
-                    backgroundColor: INPUT_COLORS[labels[header.key].inputType],
-                  }"
-                >
-                  <v-text-field
-                    v-model="item[header.key]"
-                    :readonly="
-                      mode === 'view' || isFieldDisabled(item, header.key)
-                    "
-                    @change="
-                      utils.handleField(item, header.key);
-                      updateTable(item, header.key);
-                    "
-                    :error="!isRowFieldsValid(item)"
-                    :error-messages="isRowFieldsValid(item) ? null : '擇一填寫'"
-                    :class="labels[header.key]?.dataType === 'number' ? 'number-field' : ''"
-                  ></v-text-field>
-                </td>
-                <td
-                  v-else-if="header.key === 'header.clllditm.cbprice'"
-                  :style="{
-                    backgroundColor: INPUT_COLORS[labels[header.key].inputType],
-                  }"
-                >
-                  <v-text-field
-                    v-model="item[header.key]"
-                    :readonly="
-                      mode === 'view' || isFieldDisabled(item, header.key)
-                    "
-                    @change="
-                      utils.handleField(item, header.key);
-                      updateTable(item, header.key);
-                    "
-                    :class="labels[header.key]?.dataType === 'number' ? 'number-field' : ''"
-                  ></v-text-field>
-                </td>
-                <td
-                  v-else-if="header.key === 'header.clllditm.note'"
-                  :style="{
-                    backgroundColor: INPUT_COLORS[labels[header.key].inputType],
-                  }"
-                >
-                  <v-text-field
-                    v-model="item[header.key]"
-                    :readonly="
-                      mode === 'view' || isFieldDisabled(item, header.key)
-                    "
-                    @change="updateTable(item, header.key)"
-                    :class="labels[header.key]?.dataType === 'number' ? 'number-field' : ''"
-                  ></v-text-field>
+                    v-bind="specialTableColumns[header.key].getProps(item, header.key)"
+                    v-on="specialTableColumns[header.key].getEvents(item, header.key)"
+                  />
                 </td>
                 <td
                   v-else
@@ -325,6 +219,7 @@
               <td
                 v-if="columnsForSum.includes(header.key)"
                 :style="{ backgroundColor: INPUT_COLORS['fixed'] }"
+                :class="labels[header.key]?.dataType === 'number' ? 'number-td' : ''"
               >
                 {{ utils.calculateColumnSum(results, header.key) }}
               </td>
@@ -392,23 +287,35 @@ const form = reactive({
   maker: "", // 制單
   audit: "", // 審核
 });
-/*
-                <td
-                  v-if="specialColumnConfigs[header.key]"
-                  :style="{
-                    backgroundColor: INPUT_COLORS[labels[header.key].inputType],
-                  }"
-                >
-                  <v-text-field
-                    v-model="item[header.key]"
-                    v-bind="specialColumnConfigs[header.key].getProps(item, header.key)"
-                    v-on="specialColumnConfigs[header.key].getEvents(item, header.key)"
-                  ></v-text-field>
-                </td>
-                <td
-*/
-/*
-const specialColumnConfigs = {
+
+const formSelectOptions = {
+  kind: ref(["生產領料", "生產制損", "外發領料", "包材領料"]), // 類別選項，資料庫中沒有對應的紀錄，所以這裡直接定義選項
+}; // form中的所有選單的選項
+
+const numberColumnsConfig = (hasValidation = false) => ({
+  // 數字欄位的通用配置
+  getProps: (item, headerKey) => ({
+    readonly: mode.value === 'view' || isFieldDisabled(item, headerKey),
+    class: labels.value[headerKey]?.dataType === 'number' ? 'number-field' : '',
+    ...(hasValidation && {
+      error: !isRowFieldsValid(item) && labels.value[headerKey].validationGroup !== null,
+      'error-messages': isRowFieldsValid(item)
+        ? null
+        : labels.value[headerKey].validationGroup !== null
+          ? '擇一填寫'
+          : null,
+    }),
+  }),
+  getEvents: (item, headerKey) => ({
+    change: () => {
+      utils.handleField(item, headerKey);
+      updateTable(item, headerKey);
+    },
+  }),
+});
+
+// 表格中需要特殊處理的欄位
+const specialTableColumns = {
   'header.clllditm.gcdno': {
     getProps: (item, headerKey) => ({
       readonly: true,
@@ -429,58 +336,10 @@ const specialColumnConfigs = {
       'click:append-inner': () => item['header.clllditm.gcdno'] === '' ? openSpDialog(item) : openScgcdDialog(item['header.clllditm.gcdno']),
     }),
   },
-  'header.clllditm.sqpcs': {
-    getProps: (item, headerKey) => ({
-      readonly: mode.value === 'view' || isFieldDisabled(item, headerKey),
-      class: labels.value[headerKey]?.dataType === 'number' ? 'number-field' : '',
-    }),
-    getEvents: (item, headerKey) => ({
-      change: () => {
-        utils.handleField(item, headerKey);
-        updateTable(item, headerKey);
-      },
-    }),
-  },
-  'header.clllditm.pcs': {
-    getProps: (item, headerKey) => ({
-      readonly: mode.value === 'view' || isFieldDisabled(item, headerKey),
-      error: !isRowFieldsValid(item),
-      'error-messages': isRowFieldsValid(item) ? null : '擇一填寫',
-      class: labels.value[headerKey]?.dataType === 'number' ? 'number-field' : '',
-    }),
-    getEvents: (item, headerKey) => ({
-      change: () => {
-        utils.handleField(item, headerKey);
-        updateTable(item, headerKey);
-      },
-    }),
-  },
-  'header.clllditm.pcsnx': {
-    getProps: (item, headerKey) => ({
-      readonly: mode.value === 'view' || isFieldDisabled(item, headerKey),
-      error: !isRowFieldsValid(item),
-      'error-messages': isRowFieldsValid(item) ? null : '擇一填寫',
-      class: labels.value[headerKey]?.dataType === 'number' ? 'number-field' : '',
-    }),
-    getEvents: (item, headerKey) => ({
-      change: () => {
-        utils.handleField(item, headerKey);
-        updateTable(item, headerKey);
-      },
-    }),
-  },
-  'header.clllditm.cbprice': {
-    getProps: (item, headerKey) => ({
-      readonly: mode.value === 'view' || isFieldDisabled(item, headerKey),
-      class: labels.value[headerKey]?.dataType === 'number' ? 'number-field' : '',
-    }),
-    getEvents: (item, headerKey) => ({
-      change: () => {
-        utils.handleField(item, headerKey);
-        updateTable(item, headerKey);
-      },
-    }),
-  },
+  'header.clllditm.sqpcs': numberColumnsConfig(true),
+  'header.clllditm.pcs': numberColumnsConfig(true),
+  'header.clllditm.pcsnx': numberColumnsConfig(true),
+  'header.clllditm.cbprice': numberColumnsConfig(true),
   'header.clllditm.note': {
     getProps: (item, headerKey) => ({
       readonly: mode.value === 'view' || isFieldDisabled(item, headerKey),
@@ -490,10 +349,6 @@ const specialColumnConfigs = {
       change: () => updateTable(item, headerKey),
     }),
   },
-};
-*/
-const formSelectOptions = {
-  kind: ref(["生產領料", "生產制損", "外發領料", "包材領料"]), // 類別選項，資料庫中沒有對應的紀錄，所以這裡直接定義選項
 };
 
 const netMaterialRatio = 0.8; // (llpcs + tlpcs) / yfpcs 必須小於此比例才可以做制損領料, 應該要再檢查這個數字是否合理
@@ -752,7 +607,7 @@ const displayHeaders = computed(() => {
 }); // 加入編輯和刪除按鈕
 
 const initializeData = async () => {
-  // 加載表格內的資料
+  // 加載資料
   const params = {
     danno: form.danno,
   };
@@ -786,8 +641,8 @@ const initializeData = async () => {
   idCurrent.value = idLastInDB.value; // 設置目前的 id 為DB最後一筆的 id
 
   Object.keys(form).forEach(key => {
-    form[key] = data["form"][0][key] || form[key];
-  }); // 將所有 form 屬性設為查詢結果的對應值，如果沒有則不變
+    form[key] = data["form"][0][key];
+  }); // 將所有 form 欄位的值設為查詢結果的對應值
   form.ddate = form.ddate.date.split(" ")[0]; // 將日期切割成 YYYY-MM-DD
 
   /*
@@ -1172,7 +1027,7 @@ const formRows = computed(() => {
       labels.value["label.cllldmst.danno"],
       {
         ...labels.value["label.cllldmst.kind"],
-        isReadonly: () => form.kind !== "" // 特殊的唯獨邏輯, 如果kind已經有值了, 則不允許修改 #BusinessLogic
+        isReadonly: () => form.kind !== "" // 特殊的唯讀邏輯, 如果kind已經有值了, 則不允許修改 #BusinessLogic
       },
     ],
     [
@@ -1189,32 +1044,7 @@ const formRows = computed(() => {
 }); // 上方的欄位
 console.log("formRows:", formRows.value);
 
-const isFormComplete = computed(() => {
-  // 檢查form的欄位是否有空值
-  for (let row of formRows.value) {
-    for (let field of row) {
-      if (
-        !field.isAllowBlank &&
-        (form[field.column] === null || form[field.column] === "")
-      ) {
-        return false; // 有空值，返回false
-      }
-    }
-  }
-  return true; // 所有欄位都有值，返回true
-});
-
 // 驗證表格欄位是否已填寫
-const fieldsRequired = computed(() => {
-  const fieldsArray = [];
-  for (const key in labels.value) {
-    if (key.startsWith("header.") && labels.value[key].isAllowBlank !== true) {
-      fieldsArray.push(key);
-    }
-  }
-  return fieldsArray;
-}); // 表格中的必填欄位
-console.log("fieldsRequired:", fieldsRequired.value);
 const fieldRefs = reactive({});
 const setFieldRef = (refName) => (el) => {
   if (el) {
@@ -1230,7 +1060,9 @@ const {
   isFieldDisabled,
   focusNextInvalidField,
   isFocusMechanismActive,
-} = useFieldValidate(results, fieldsRequired.value, fieldRefs, labels.value);
+  isFormError,
+  isFormComplete,
+} = useFieldValidate(results, form, formRows.value, fieldRefs, labels.value);
 
 // --- Lifecycle Hooks ---
 onMounted(async () => {
@@ -1238,18 +1070,7 @@ onMounted(async () => {
 
   await setMode("view");
 
-  // 檢查 URL 參數，自動切換到對應的模式
-  const urlParams = new URLSearchParams(window.location.search);
-  const modeParam = urlParams.get("mode");
-  if (modeParam) {
-    if (modeParam === "add" || modeParam === "edit") {
-      await setMode(modeParam); // 切換到新增或編輯模式
-    }
-    // 從 URL 中刪除 mode 參數
-    const urlCurrent = new URL(window.location);
-    urlCurrent.searchParams.delete("mode");
-    window.history.replaceState({}, "", urlCurrent);
-  }
+  utils.handleUrlParams(setMode); // 處理URL中的參數，並自動切換到對應的模式
 });
 </script>
 

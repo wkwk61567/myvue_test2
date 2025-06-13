@@ -2,11 +2,21 @@
 
 import { ref, computed, watch } from "vue";
 
-export function useFieldValidate(results, fieldsRequired, fieldRefs, labels) {
+export function useFieldValidate(results, form, formRows, fieldRefs, labels) {
   // 聚焦機制狀態
   const focusedItem = ref(null); // 用來存儲當前聚焦的行
   const focusedField = ref(null); // 用來存儲當前聚焦的欄位
   const isFocusMechanismActive = ref(false); // 用來標記聚焦機制是否啟動
+
+  const fieldsRequired = computed(() => {
+    const fieldsArray = [];
+    for (const key in labels) {
+      if (key.startsWith("header.") && labels[key].isAllowBlank !== true) {
+        fieldsArray.push(key);
+      }
+    }
+    return fieldsArray;
+  }); // 表格中的必填欄位
 
   function getElementRef(item, field) {
     const refName = `field_${item["NA.cldhditm.id"]}_${field}`;
@@ -87,7 +97,7 @@ export function useFieldValidate(results, fieldsRequired, fieldRefs, labels) {
   function isRowFieldsValid(item) {
     // 驗證某一行需要檢查的欄位是否都已填有效值
     if (
-      fieldsRequired.every((field) => {
+      fieldsRequired.value.every((field) => {
         return isFieldValid(item[field], field);
       })
     ) {
@@ -143,8 +153,8 @@ export function useFieldValidate(results, fieldsRequired, fieldRefs, labels) {
     const currentItemIndex = results.value.indexOf(item);
     if (currentItemIndex !== -1) {
       // 檢查當前行中的欄位
-      for (let i = 0; i < fieldsRequired.length; i++) {
-        const nextField = fieldsRequired[i];
+      for (let i = 0; i < fieldsRequired.value.length; i++) {
+        const nextField = fieldsRequired.value[i];
         if (!isFieldValid(item[nextField], nextField)) {
           // 找到了當前行中的下一個無效欄位
           const elementRef = getElementRef(item, nextField);
@@ -165,8 +175,8 @@ export function useFieldValidate(results, fieldsRequired, fieldRefs, labels) {
       ) {
         const nextRow = results.value[rowIndex];
 
-        for (let i = 0; i < fieldsRequired.length; i++) {
-          const field = fieldsRequired[i];
+        for (let i = 0; i < fieldsRequired.value.length; i++) {
+          const field = fieldsRequired.value[i];
 
           if (!isFieldValid(nextRow[field], field)) {
             // 找到了後續行中的無效欄位
@@ -223,10 +233,11 @@ export function useFieldValidate(results, fieldsRequired, fieldRefs, labels) {
   function handleBlur(item, field, elementRef) {
     // 處理欄位失去焦點事件
 
-    // 填完之後可以反悔，回去填原本的欄位(必須在fieldsRequired的順序更前面)
+    // 填完之後可以反悔，回去填原本的欄位(必須在fieldsRequired.value的順序更前面)
     if (
       isFocusMechanismActive.value &&
-      fieldsRequired.indexOf(field) < fieldsRequired.indexOf(focusedField.value)
+      fieldsRequired.value.indexOf(field) <
+        fieldsRequired.value.indexOf(focusedField.value)
     ) {
       console.log(`欄位 ${field} 反悔`);
       deactivateFocusMechanism();
@@ -286,6 +297,38 @@ export function useFieldValidate(results, fieldsRequired, fieldRefs, labels) {
     { deep: true }
   );
 
+  function isFormError(mode, field, value) {
+    // 檢查表單欄位是否要顯示錯誤(view模式下不檢查)
+    return (
+      mode !== "view" &&
+      !(
+        field.inputType === "fixed" ||
+        (field.inputType === "optional" &&
+          !(
+            field.componentType === "icon-text-field" ||
+            field.componentType === "select"
+          ))
+      ) &&
+      !field.isAllowBlank &&
+      (value === null || value === "")
+    );
+  }
+
+  const isFormComplete = computed(() => {
+    // 檢查form的欄位是否有空值
+    for (let row of formRows) {
+      for (let field of row) {
+        if (
+          !field.isAllowBlank &&
+          (form[field.column] === null || form[field.column] === "")
+        ) {
+          return false; // 有空值，返回false
+        }
+      }
+    }
+    return true; // 所有欄位都有值，返回true
+  });
+
   return {
     isFieldValid,
     isRowFieldsValid,
@@ -295,5 +338,7 @@ export function useFieldValidate(results, fieldsRequired, fieldRefs, labels) {
     isFieldDisabled,
     focusNextInvalidField,
     isFocusMechanismActive,
+    isFormError,
+    isFormComplete,
   };
 }

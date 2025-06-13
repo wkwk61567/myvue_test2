@@ -10,7 +10,6 @@ const dictionary = {
   },
 };
 
-
 export const API_BASE_URL = "http://" + window.location.hostname;
 export const INPUT_COLORS = {
   inputable: "#ffffff", // 可自由輸入

@@ -53,7 +53,7 @@
                   :style="{ backgroundColor: INPUT_COLORS[field.inputType] }"
                   :append-inner-icon="field.icon"
                   @click:append-inner="field.onClick"
-                  :error="utils.isFormError(mode, field, form[field.column])"
+                  :error="isFormError(mode, field, form[field.column])"
                 />
               </template>
               <template v-else>
@@ -96,7 +96,7 @@
                       ? { type: 'date' }
                       : {}
                   "
-                  :error="utils.isFormError(mode, field, form[field.column])"
+                  :error="isFormError(mode, field, form[field.column])"
                   @change="updateForm(field)"
                 />
               </template>
@@ -297,6 +297,7 @@
               <td
                 v-if="columnsForSum.includes(header.key)"
                 :style="{ backgroundColor: INPUT_COLORS['fixed'] }"
+                :class="labels[header.key]?.dataType === 'number' ? 'number-td' : ''"
               >
                 {{ utils.calculateColumnSum(results, header.key) }}
               </td>
@@ -784,7 +785,7 @@ const displayHeaders = computed(() => {
 }); // 加入編輯和刪除按鈕
 
 const initializeData = async () => {
-  // 加載表格內的資料
+  // 加載資料
   const params = {
     danno: form.danno,
   };
@@ -826,8 +827,8 @@ const initializeData = async () => {
 
   // 這裡應該要根據column找到對應的dataType === "date"的欄位 將日期切割成 YYYY-MM-DD
   Object.keys(form).forEach(key => {
-    form[key] = data["form"][0][key] || form[key];
-  }); // 將所有 form 屬性設為查詢結果的對應值，如果沒有則設為空字串
+    form[key] = data["form"][0][key];
+  }); // 將所有 form 欄位的值設為查詢結果的對應值
   form.ddate = form.ddate.date.split(" ")[0]; // 將日期切割成 YYYY-MM-DD
 
   /*
@@ -1211,33 +1212,8 @@ const formRows = computed(() => {
 }); // 上方的欄位
 console.log("formRows:", formRows.value);
 
-const isFormComplete = computed(() => {
-  // 檢查form的欄位是否有空值
-  for (let row of formRows.value) {
-    for (let field of row) {
-      if (
-        !field.isAllowBlank &&
-        (form[field.column] === null || form[field.column] === "")
-      ) {
-        return false; // 有空值，返回false
-      }
-    }
-  }
-  return true; // 所有欄位都有值，返回true
-});
-
 
 // 驗證表格欄位是否已填寫
-const fieldsRequired = computed(() => {
-  const fieldsArray = [];
-  for (const key in labels.value) {
-    if (key.startsWith('header.') && labels.value[key].isAllowBlank !== true) {
-      fieldsArray.push(key);
-    }
-  }
-  return fieldsArray;
-}); // 表格中的必填欄位
-console.log("fieldsRequired:", fieldsRequired.value);
 const fieldRefs = reactive({});
 const setFieldRef = (refName) => (el) => {
   if (el) {
@@ -1253,7 +1229,9 @@ const {
   isFieldDisabled,
   focusNextInvalidField,
   isFocusMechanismActive,
-} = useFieldValidate(results, fieldsRequired.value, fieldRefs, labels.value);
+  isFormError,
+  isFormComplete,
+} = useFieldValidate(results, form, formRows.value, fieldRefs, labels.value);
 
 // --- Lifecycle Hooks ---
 onMounted(async () => {
@@ -1264,18 +1242,7 @@ onMounted(async () => {
 
   await setMode("view");
 
-  // 檢查 URL 參數，自動切換到對應的模式
-  const urlParams = new URLSearchParams(window.location.search);
-  const modeParam = urlParams.get("mode");
-  if (modeParam) {
-    if (modeParam === "add" || modeParam === "edit") {
-      await setMode(modeParam); // 切換到新增或編輯模式
-    }
-    // 從 URL 中刪除 mode 參數
-    const urlCurrent = new URL(window.location);
-    urlCurrent.searchParams.delete("mode");
-    window.history.replaceState({}, "", urlCurrent);
-  }
+  utils.handleUrlParams(setMode); // 處理URL中的參數，並自動切換到對應的模式
 });
 </script>
 
