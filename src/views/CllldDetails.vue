@@ -1,3 +1,4 @@
+<!-- 材料發料單明細頁面 -->
 <template>
   <v-container style="max-width: none">
     <ButtonsCRUDP
@@ -19,7 +20,7 @@
       :discard="() => setMode('view')"
       :isButtonsSaveDiscardVisible="mode !== 'view'"
     />
-    <!-- mst表單區塊 -->
+    <!-- form區塊 -->
     <v-card>
       <v-card-text>
         <v-row v-for="(row, rowIndex) in formRows" :key="rowIndex">
@@ -492,7 +493,7 @@ const specialColumnConfigs = {
 };
 */
 const formSelectOptions = {
-  kind: ref(["生產領料", "生產制損", "外發領料", "包材領料"]), // 類別選項
+  kind: ref(["生產領料", "生產制損", "外發領料", "包材領料"]), // 類別選項，資料庫中沒有對應的紀錄，所以這裡直接定義選項
 };
 
 const netMaterialRatio = 0.8; // (llpcs + tlpcs) / yfpcs 必須小於此比例才可以做制損領料, 應該要再檢查這個數字是否合理
@@ -575,7 +576,7 @@ const  openSpDialog = async (item = null)  => {
   spQuery.spspec = "";
   spQuery.matno = "";
   spQuery.spunit = "";
-  spQuery.spkindname = "原材料";
+  spQuery.spkindname = "原材料"; // 預設查詢原材料類別
   
   // 調用訂單查詢
   const params = {
@@ -779,13 +780,6 @@ const initializeData = async () => {
 
   // 接收查詢結果
   results.value = data["table"];
-
-  // 排序
-  results.value.sort((a, b) => {
-    const idA = String(a["header.clllditm.id"] || "");
-    const idB = String(b["header.clllditm.id"] || "");
-    return idA.localeCompare(idB, { numeric: true });
-  });
 
   idLastInDB.value = data["table"].at(-1)["header.clllditm.id"]; // 取得DB最後一筆的 id
   console.log("最後一筆的 id：", idLastInDB.value);
@@ -1246,10 +1240,12 @@ onMounted(async () => {
 
   // 檢查 URL 參數，自動切換到對應的模式
   const urlParams = new URLSearchParams(window.location.search);
-  const mode = urlParams.get("mode");
-  if (mode === "add" || mode === "edit") {
-    await setMode(mode);
-    // 移除 URL 中的 mode 參數
+  const modeParam = urlParams.get("mode");
+  if (modeParam) {
+    if (modeParam === "add" || modeParam === "edit") {
+      await setMode(modeParam); // 切換到新增或編輯模式
+    }
+    // 從 URL 中刪除 mode 參數
     const urlCurrent = new URL(window.location);
     urlCurrent.searchParams.delete("mode");
     window.history.replaceState({}, "", urlCurrent);

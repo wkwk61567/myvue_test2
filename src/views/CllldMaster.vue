@@ -1,4 +1,4 @@
-<!-- 未完成 -->
+<!-- 材料發料單單據頁面 -->
 <template>
   <v-container style="max-width: none">
     <ButtonsCRUDP
@@ -15,7 +15,7 @@
       :exportExcel="() => utils.exportExcel(results.value, headers.value, '材料發料單單據', '材料發料單單據')"
       :isExportExcelDisabled="isExportExcelDisabled"
     />
-    <!-- 搜尋表單區塊 -->
+    <!-- form區塊 -->
     <v-card>
       <v-card-title>資料庫查詢</v-card-title>
       <v-card-text>
@@ -100,7 +100,7 @@
             <tr
               v-bind="hoverProps"
               @click="selectRow(item)"
-              @dblclick="goToPage(item['header.cllldmst.danno'])"
+              @dblclick="goToPage(item['header.cllldmst.danno'], { mode: 'view' })"
               :style="
                 isRowSelected(item['header.cllldmst.danno'])
                   ? { backgroundColor: SELECTED_COLOR }
@@ -152,7 +152,7 @@ const kindOptions = ref([
   { kind: "生產制損" },
   { kind: "外發領料" },
   { kind: "包材領料" },
-]); // 類型選項
+]); // 類別選項，資料庫中沒有對應的紀錄，所以這裡直接定義選項
 const formSelectOptions = {
   kind: kindOptions,
 }; // form中的所有選項
@@ -205,14 +205,6 @@ const query = async () => {
   console.log("查詢結果：", results.value);
 
   utils.formatDateTimeFields(results.value, labels.value); // 轉換日期和時間欄位
-
-  // 依 header.cldhdmst.ddate 日期排序 (舊到新)
-  results.value.sort((a, b) => {
-    const dateA = a["header.cllldmst.ddate"] || "";
-    const dateB = b["header.cllldmst.ddate"] || "";
-    // 日期格式為 yyyy-mm-dd，可直接比較字串
-    return dateA.localeCompare(dateB);
-  });
 };
 
 const { selectedRow, selectRow, isRowSelected } = useSelectRow("header.cllldmst.danno"); // 選取row相關的變數和函式

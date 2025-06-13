@@ -60,15 +60,15 @@ CljhdDetails.vue,header,cljhditm,id,序,Sequence,Trình tự,1,fixed,FALSE,FALSE
 CljhdDetails.vue,header,cljhditm,dhdno,訂購單號,Purchase Order No.,Số đơn đặt hàng,2,fixed,FALSE,FALSE,,,,,,
 CljhdDetails.vue,header,cljhditm,dhdid,訂單序號,Order Serial No.,Số thứ tự đơn hàng,3,optional,FALSE,FALSE,,,,,,
 CljhdDetails.vue,header,cljhditm,spno,材料編碼,Material Code,Mã vật liệu,4,optional,FALSE,FALSE,,,,,,
-CljhdDetails.vue,header,cljhditm,spspec,規格,Specification,Quy cách,5,optional,FALSE,FALSE,,,,,,
-CljhdDetails.vue,header,cljhditm,spunit,單位,Unit,Đơn vị,6,fixed,FALSE,FALSE,,,,,,
+CljhdDetails.vue,header,sp,spspec,規格,Specification,Quy cách,5,optional,FALSE,FALSE,,,,,,
+CljhdDetails.vue,header,sp,spunit,單位,Unit,Đơn vị,6,fixed,FALSE,FALSE,,,,,,
 CljhdDetails.vue,header,cljhditm,dhdpcs,訂購數,Ordered Quantity,Số lượng đặt hàng,7,fixed,FALSE,FALSE,,,,,,number
 CljhdDetails.vue,header,cljhditm,getpcs,已交數,Delivered Quantity,Số lượng đã giao,8,fixed,FALSE,FALSE,,,,,,number
 CljhdDetails.vue,header,cljhditm,notpcs,未交數,Undelivered Quantity,Số lượng chưa giao,9,fixed,FALSE,FALSE,,,,,,number
 CljhdDetails.vue,header,cljhditm,jhpcs,暫收數量,Temporary Received Quantity,Số lượng tạm nhận,10,inputable,TRUE,FALSE,,,,positive,,number
 CljhdDetails.vue,header,cljhditm,jhkg,暫收重量,Temporary Received Weight,Trọng lượng tạm nhận,11,inputable,TRUE,FALSE,,,,number,,number
 CljhdDetails.vue,header,cljhditm,jhdz,暫收單重,Temporary Unit Weight,Trọng lượng đơn tạm nhận,12,fixed,FALSE,FALSE,,,,,,number
-CljhdDetails.vue,header,cljhditm,dz,理論單重,Theoretical Unit Weight,Trọng lượng đơn lý thuyết,13,fixed,FALSE,FALSE,,,,,,number
+CljhdDetails.vue,header,sp,dz,理論單重,Theoretical Unit Weight,Trọng lượng đơn lý thuyết,13,fixed,FALSE,FALSE,,,,,,number
 CljhdDetails.vue,header,cljhditm,dzrate,單重差%,Unit Weight Difference %,Chênh lệch trọng lượng đơn %,14,fixed,FALSE,FALSE,,,,,,number
 CljhdDetails.vue,header,cljhditm,pcs,實收良品數量,Accepted Good Quantity,Số lượng hàng tốt nhận thực tế,15,fixed,FALSE,FALSE,,,,,,number
 CljhdDetails.vue,header,cljhditm,kg,實收良品重量,Accepted Good Weight,Trọng lượng hàng tốt nhận thực tế,16,fixed,FALSE,FALSE,,,,,,number

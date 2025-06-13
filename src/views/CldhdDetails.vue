@@ -1,3 +1,4 @@
+<!-- 材料采購單明細頁面 -->
 <template>
   <v-container style="max-width: none">
     <ButtonsCRUDP
@@ -9,7 +10,7 @@
       :isDeleteOrderDisabled="isDeleteOrderDisabled"
       :toggleAudit="toggleAudit"
       :isToggleAuditDisabled="isToggleAuditDisabled"
-      :exportExcel="() => utils.exportExcel(results.value, headers.value, '訂購單明細', '訂購單明細')"
+      :exportExcel="() => utils.exportExcel(results.value, headers.value, '材料采購單明細', '材料采購單明細')"
       :isExportExcelDisabled="isExportExcelDisabled"
       :isButtonsCRUDPVisible="mode === 'view'"
     />
@@ -19,7 +20,7 @@
       :discard="() => setMode('view')"
       :isButtonsSaveDiscardVisible="mode !== 'view'"
     />
-    <!-- form表單區塊 -->
+    <!-- form區塊 -->
     <v-card>
       <v-card-text>
         <v-row v-for="(row, rowIndex) in formRows" :key="rowIndex">
@@ -496,6 +497,7 @@ const selectSp = async (item) => {
   tempItem.dz = item.dz; // 單重(不可見)
   // 單價
   if (spkindno.value === 3) {
+    // 如果是卷料，使用pricekg; 否則使用price #Business Logic
     if (item.clkind === '卷料') {
       console.log("卷料價格");
       if (item.pricekg1 > 0 || item.pricekg2 > 0) {
@@ -538,7 +540,7 @@ const selectSp = async (item) => {
         const dataSpno = await utils.fetchData("cldhditmUpdate.php", paramsSpno); // 透過api更新資料
         console.log("更新結果dataSpno:", dataSpno);
 
-        // 更新單價
+        // 更新單價，#Business Logic
         if(spkindname.value === "原材料"){
           item["header.cldhditm.pay"] = parseFloat(
             (item["header.cldhditm.kg"] * item["header.cldhditm.price"]).toFixed(2)
@@ -664,7 +666,7 @@ const selectGclprice = async (item) => {
   const key = "header.cldhditm.price"; // 要更新的欄位
   const priceOld = selecrRow[key]; // 原先的價格
 
-  // 填入單價欄位
+  // 填入單價欄位，如果是卷料，則使用 pricekg，否則使用 price #Business Logic
   if (selecrRow.clkind === '卷料') {
     const priceTypeName = "header.gclprice.pricekg" + priceType.value;
     console.log("priceTypeName:", priceTypeName);
@@ -816,13 +818,6 @@ const initializeData = async () => {
     item["header.cldhditm.gdate"] = item["header.cldhditm.gdate"]
       ? item["header.cldhditm.gdate"].date.split(" ")[0]
       : "";
-  });
-
-  // 排序
-  results.value.sort((a, b) => {
-    const idA = String(a["NA.cldhditm.id"] || "");
-    const idB = String(b["NA.cldhditm.id"] || "");
-    return idA.localeCompare(idB, { numeric: true });
   });
 
   idLastInDB.value = data["table"].at(-1)["NA.cldhditm.id"]; // 取得DB最後一筆的 id
@@ -1117,6 +1112,7 @@ const minWidthMap = ref({}); // 用來存儲最小寬度
 
 async function calculateStickyLeft() {
   // 計算 sticky 的 left 值和個欄位的最小寬度
+  // 寬度現在是根據資料的長度計算的, 但是中文字的寬度和英文的寬度不一樣, 應該要用其他方法修正這個問題
   let left = 0;
   let thWidth = 0;
   stickyLeftMap.value = {};
@@ -1270,10 +1266,12 @@ onMounted(async () => {
 
   // 檢查 URL 參數，自動切換到對應的模式
   const urlParams = new URLSearchParams(window.location.search);
-  const mode = urlParams.get("mode");
-  if (mode === "add" || mode === "edit") {
-    await setMode(mode);
-    // 移除 URL 中的 mode 參數
+  const modeParam = urlParams.get("mode");
+  if (modeParam) {
+    if (modeParam === "add" || modeParam === "edit") {
+      await setMode(modeParam); // 切換到新增或編輯模式
+    }
+    // 從 URL 中刪除 mode 參數
     const urlCurrent = new URL(window.location);
     urlCurrent.searchParams.delete("mode");
     window.history.replaceState({}, "", urlCurrent);

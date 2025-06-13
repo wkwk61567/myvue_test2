@@ -1,3 +1,4 @@
+<!-- 材料QC一覽表明細頁面 -->
 <template>
   <v-container style="max-width: none">
     <ButtonsCRUDP
@@ -9,7 +10,7 @@
       :isDeleteOrderDisabled="isDeleteOrderDisabled"
       :toggleAudit="toggleAudit"
       :isToggleAuditDisabled="isToggleAuditDisabled"
-      :exportExcel="() => utils.exportExcel(results.value, headers.value, '收貨單明細', '收貨單明細')"
+      :exportExcel="() => utils.exportExcel(results.value, headers.value, '材料QC一覽表明細', '材料QC一覽表明細')"
       :isExportExcelDisabled="isExportExcelDisabled"
       :isButtonsCRUDPVisible="mode === 'view'"
     />
@@ -19,7 +20,7 @@
       :discard="() => setMode('view')"
       :isButtonsSaveDiscardVisible="mode !== 'view'"
     />
-    <!-- mst表單區塊 -->
+    <!-- form區塊 -->
     <v-card>
       <v-card-text>
         <v-row v-for="(row, rowIndex) in formRows" :key="rowIndex">
@@ -433,13 +434,6 @@ const initializeData = async () => {
   // 接收查詢結果
   results.value = data["table"];
 
-  // 排序
-  results.value.sort((a, b) => {
-    const idA = String(a["header.cljhditm.id"] || "");
-    const idB = String(b["header.cljhditm.id"] || "");
-    return idA.localeCompare(idB, { numeric: true });
-  });
-
   idLastInDB.value = data["table"].at(-1)["header.cljhditm.id"]; // 取得DB最後一筆的 id
   console.log("最後一筆的 id：", idLastInDB.value);
   idCurrent.value = idLastInDB.value; // 設置目前的 id 為DB最後一筆的 id
@@ -649,7 +643,7 @@ const updateTable = async (item, key) => {
       )
     ) {
       item["header.cljhditm.jhkg"] = parseFloat(
-        (item["header.cljhditm.jhpcs"] * item["header.cljhditm.dz"]).toFixed(4)
+        (item["header.cljhditm.jhpcs"] * item["header.sp.dz"]).toFixed(4)
       ).toString();
     }
 
@@ -659,13 +653,13 @@ const updateTable = async (item, key) => {
     );
 
     // 計算單重差
-    if (item["header.cljhditm.dz"] === 0) {
+    if (item["header.sp.dz"] === 0) {
       // 避免除以0
       item["header.cljhditm.dzrate"] = 0;
     } else {
       item["header.cljhditm.dzrate"] = parseFloat(
         (
-          (item["header.cljhditm.jhdz"] / item["header.cljhditm.dz"] - 1) *
+          (item["header.cljhditm.jhdz"] / item["header.sp.dz"] - 1) *
           100
         ).toFixed(2)
       );
@@ -843,12 +837,15 @@ onMounted(async () => {
   console.log("限制百分比：", limitPercentage.value);
 
   await setMode("view");
+
   // 檢查 URL 參數，自動切換到對應的模式
   const urlParams = new URLSearchParams(window.location.search);
-  const mode = urlParams.get("mode");
-  if (mode === "add" || mode === "edit") {
-    await setMode(mode);
-    // 移除 URL 中的 mode 參數
+  const modeParam = urlParams.get("mode");
+  if (modeParam) {
+    if (modeParam === "add" || modeParam === "edit") {
+      await setMode(modeParam); // 切換到新增或編輯模式
+    }
+    // 從 URL 中刪除 mode 參數
     const urlCurrent = new URL(window.location);
     urlCurrent.searchParams.delete("mode");
     window.history.replaceState({}, "", urlCurrent);

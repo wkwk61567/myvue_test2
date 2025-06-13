@@ -1,3 +1,4 @@
+<!-- 材料采購單單據頁面 -->
 <template>
   <v-container style="max-width: none">
     <ButtonsCRUDP
@@ -11,10 +12,10 @@
       :isDeleteOrderDisabled="isDeleteOrderDisabled"
       :toggleAudit="toggleAudit"
       :isToggleAuditDisabled="isToggleAuditDisabled"
-      :exportExcel="() => utils.exportExcel(results.value, headers.value, '訂購單單據', '訂購單單據')"
+      :exportExcel="() => utils.exportExcel(results.value, headers.value, '材料采購單單據', '材料采購單單據')"
       :isExportExcelDisabled="isExportExcelDisabled"
     />
-    <!-- 搜尋表單區塊 -->
+    <!-- form區塊 -->
     <v-card>
       <v-card-title>資料庫查詢</v-card-title>
       <v-card-text>
@@ -114,7 +115,7 @@
             <tr
               v-bind="hoverProps"
               @click="selectRow(item)"
-              @dblclick="goToPage(item['header.cldhdmst.danno'])"
+              @dblclick="goToPage(item['header.cldhdmst.danno'], { mode: 'view' })"
               :style="
                 isRowSelected(item['header.cldhdmst.danno'])
                   ? { backgroundColor: SELECTED_COLOR }
@@ -241,14 +242,6 @@ const query = async () => {
   console.log("查詢結果：", results.value);
 
   utils.formatDateTimeFields(results.value, labels.value); // 轉換日期和時間欄位
-
-  // 依 header.cldhdmst.ddate 日期排序 (舊到新)
-  results.value.sort((a, b) => {
-    const dateA = a["header.cldhdmst.ddate"] || "";
-    const dateB = b["header.cldhdmst.ddate"] || "";
-    // 日期格式為 yyyy-mm-dd，可直接比較字串
-    return dateA.localeCompare(dateB);
-  });
 };
 
 const { selectedRow, selectRow, isRowSelected } = useSelectRow("header.cldhdmst.danno"); // 選取row相關的變數和函式
