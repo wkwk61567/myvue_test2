@@ -35,6 +35,7 @@ export function useFieldValidate(results, form, formRows, fieldRefs, labels) {
 
   function isFieldValid(fieldValue, field) {
     // 驗證某個欄位是否已填有效值
+    // #BusinessLogic
 
     if (labels[field].validationRule === "nonEmptyString") {
       // 如果是非空字串，則檢查是否為空
@@ -94,6 +95,51 @@ export function useFieldValidate(results, form, formRows, fieldRefs, labels) {
     }
   }
 
+  function getInvalidGroupNames(item) {
+    // 回傳分組無效的組名列表
+    // #BusinessLogic
+    const invalidGroups = [];
+    const groups = {};
+
+    // 收集所有 atLeastOnePositive 分組
+    for (const field in labels) {
+      if (labels[field].validationRule === "atLeastOnePositive") {
+        const groupName = labels[field].validationGroup;
+        if (!groupName) {
+          console.error(
+            `欄位 ${field} 的 validationRule 是 "atLeastOnePositive" 但缺少 validationGroup`
+          );
+          continue; // 跳過沒有分組的欄位
+        }
+        if (!groups[groupName]) {
+          groups[groupName] = [];
+        }
+        groups[groupName].push(field);
+      }
+    }
+
+    // 檢查每個分組是否有效，收集無效的組名
+    for (const groupName in groups) {
+      const fieldsInGroup = groups[groupName];
+      const isGroupValid = fieldsInGroup.some((field) => {
+        const fieldValue = item[field];
+        return (
+          fieldValue !== undefined &&
+          fieldValue !== null &&
+          !isNaN(parseFloat(fieldValue)) &&
+          isFinite(fieldValue) &&
+          parseFloat(fieldValue) > 0
+        );
+      });
+
+      if (!isGroupValid) {
+        invalidGroups.push(groupName);
+      }
+    }
+
+    return invalidGroups;
+  }
+
   function isRowFieldsValid(item) {
     // 驗證某一行需要檢查的欄位是否都已填有效值
     if (
@@ -101,6 +147,12 @@ export function useFieldValidate(results, form, formRows, fieldRefs, labels) {
         return isFieldValid(item[field], field);
       })
     ) {
+      const invalidGroups = getInvalidGroupNames(item);
+      if (invalidGroups.length > 0) {
+        return false; // 如果有任何分組無效，則整行無效
+      }
+      return true; // 所有基本驗證通過，且所有 "atLeastOnePositive" 分組都有效
+      /*
       const groups = {};
       for (const field in labels) {
         if (labels[field].validationRule === "atLeastOnePositive") {
@@ -135,15 +187,17 @@ export function useFieldValidate(results, form, formRows, fieldRefs, labels) {
           return false; // 如果任何一個分組無效，則整行無效
         }
       }
+      
       return true; // 所有基本驗證通過，且所有 "atLeastOnePositive" 分組都有效
+      */
     } else {
       return false;
     }
   }
 
-  const isAnyFieldInvalid = computed(() => {
-    // 檢查是否有任一行欄位未填寫
-    return results.value.some((item) => !isRowFieldsValid(item));
+  const isAnyFieldValid = computed(() => {
+    // 檢查是否所有欄位皆以填寫正確
+    return results.value.every((item) => isRowFieldsValid(item));
   });
 
   function focusNextInvalidField(item) {
@@ -297,7 +351,7 @@ export function useFieldValidate(results, form, formRows, fieldRefs, labels) {
     { deep: true }
   );
 
-  function isFormError(mode, field, value) {
+  function isShowFormError(mode, field, value) {
     // 檢查表單欄位是否要顯示錯誤(view模式下不檢查)
     return (
       mode !== "view" &&
@@ -331,14 +385,15 @@ export function useFieldValidate(results, form, formRows, fieldRefs, labels) {
 
   return {
     isFieldValid,
+    getInvalidGroupNames,
     isRowFieldsValid,
-    isAnyFieldInvalid,
+    isAnyFieldValid,
     handleFocus,
     handleBlur,
     isFieldDisabled,
     focusNextInvalidField,
     isFocusMechanismActive,
-    isFormError,
+    isShowFormError,
     isFormComplete,
   };
 }

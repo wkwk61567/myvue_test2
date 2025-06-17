@@ -116,7 +116,10 @@
                       disabled
                     ></v-checkbox>
                   </td>
-                  <td v-else :class="labels[header.key]?.dataType === 'number' ? 'number-td' : ''" >{{ item[header.key] }}</td>
+                 <td v-else 
+                    :class="labels[header.key]?.dataType === 'number' ? 'number-td' : ''" 
+                    @click="utils.selectCellText($event)"
+                  >{{ item[header.key] }}</td>
               </template>
             </tr>
           </v-hover>
@@ -137,6 +140,11 @@ import { useSelectRow } from "@/composables/useSelectRow.js";
 import { useGoToPage } from "@/composables/useGoToPage.js";
 
 const selectedLanguage = inject("selectedLanguage"); // 接收selectedLanguage 作為目前顯示的語言
+
+// 表格的名稱
+const formno = "cllld";
+const tableNameMST = "cllldmst";
+const tableNameITM = "clllditm";
 
 // 取得當前語言的字典
 const fileName = import.meta.url.split("/").pop().split("%")[0];
@@ -191,7 +199,7 @@ const {
   isToggleAuditDisabled,
   isExportExcelDisabled,
   checkButtonFlags,
-} = useCheckButtonFlags("cllld", form.audit);
+} = useCheckButtonFlags(formno, form.audit);
 
 const results = ref([]); // 查詢結果
 
@@ -231,9 +239,9 @@ const deleteOrder = async () => {
     const itmData = await utils.fetchData("cllldDetails.php", {
       danno: selectedRow.value["header.cllldmst.danno"],
     }); //透過api獲取該筆單據的明細資料
-    console.log("明細資料:", itmData["clllditm"]);
+    console.log("明細資料:", itmData["table"]);
     if (confirm("您確定要刪除整張單據嗎?")) {
-      for (let item of itmData["clllditm"]) {
+      for (let item of itmData["table"]) {
         const params = {
           danno: selectedRow.value["header.cllldmst.danno"],
           kind: item["header.clllditm.kind"],
@@ -245,7 +253,7 @@ const deleteOrder = async () => {
       alert("刪除完成");
     }
   } else {
-    alert("此單已審核，不能刪除");
+    alert("此單已審核，不能刪除"); // #BusinessLogic
   }
   await query(); // 重新載入表格
   selectedRow.value = null; // 清除選擇
@@ -263,8 +271,8 @@ const toggleAudit = async () => {
     selectedRow.value["header.cllldmst.audit"] === "";
   const params = {
     danno: selectedRow.value["header.cllldmst.danno"],
-    table: "cllldmst",
-    formno: "cllld",
+    table: tableNameMST,
+    formno: formno,
   };
 
   await utils.auditOrder(isAudit, params);

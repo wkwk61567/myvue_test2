@@ -114,15 +114,15 @@ export function useOrderDialog(results, idCurrent) {
     tempOrder["header.cljhditm.dhdno"] = order["header.cldhditm.danno"];
     tempOrder["header.cljhditm.dhdid"] = order["header.cldhditm.dhdid"];
     tempOrder["header.cljhditm.spno"] = order["header.cldhditm.spno"];
-    tempOrder["header.cljhditm.spspec"] = order["header.sp.spspec"];
-    tempOrder["header.cljhditm.spunit"] = order["header.sp.spunit"];
+    tempOrder["header.sp.spspec"] = order["header.sp.spspec"];
+    tempOrder["header.sp.spunit"] = order["header.sp.spunit"];
     tempOrder["header.cljhditm.dhdpcs"] = order["header.cldhditm.dhdpcs"];
     tempOrder["header.cljhditm.getpcs"] = order["header.cldhditm.getpcs"];
     tempOrder["header.cljhditm.notpcs"] = order["header.NA.notpcs"];
     tempOrder["header.cljhditm.jhpcs"] = 0;
     tempOrder["header.cljhditm.jhkg"] = 0;
     tempOrder["header.cljhditm.jhdz"] = NaN;
-    tempOrder["header.cljhditm.dz"] = order["header.sp.dz"];
+    tempOrder["header.sp.dz"] = order["header.sp.dz"];
     tempOrder["header.cljhditm.dzrate"] = NaN;
     //實收良品數量 pcs
     //實收良品重量 kg

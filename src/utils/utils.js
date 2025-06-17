@@ -53,13 +53,14 @@ export function handleField(item, field) {
     numericValue = 0; // 如果小於0，則設為0
   }
 
-  numericValue = parseFloat(numericValue.toFixed(4)).toString(); // 四捨五入到小數點後4位
+  numericValue = parseFloat(numericValue.toFixed(4)).toString(); // 四捨五入到小數點後4位 #BusinessLogic
 
   item[field] = numericValue; // 更新數值
 }
 
 export function setCljhditmNumbers(item, limitPercentage) {
   // 用內部的邏輯計算並且重設暫收數量, 暫收重量, 理論單重, 單重差, 金額
+  // #BusinessLogic
 
   /*
   能再多收幾%定義在xtsetup table下：
@@ -370,4 +371,21 @@ export async function handleUrlParams(setMode) {
     urlCurrent.searchParams.delete("mode");
     window.history.replaceState({}, "", urlCurrent);
   }
+}
+
+export function selectCellText(event) {
+  // 選取表格中的文字
+
+  const cell = event.target;
+
+  // 清除現有選取
+  window.getSelection().removeAllRanges();
+
+  // 創建新的選取範圍
+  const range = document.createRange();
+  range.selectNodeContents(cell);
+
+  // 應用選取
+  const selection = window.getSelection();
+  selection.addRange(range);
 }

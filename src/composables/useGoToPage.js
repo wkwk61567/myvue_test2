@@ -20,7 +20,7 @@ export function useGoToPage(pagePath, selectedRow, keyAudit) {
           selectedRow.value[keyAudit] === ""
         )
       ) {
-        alert("此單已審核，不能修改");
+        alert("此單已審核，不能修改"); // #BusinessLogic
         return;
       }
     }

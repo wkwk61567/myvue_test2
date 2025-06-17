@@ -131,7 +131,10 @@
                       disabled
                     ></v-checkbox>
                   </td>
-                  <td v-else :class="labels[header.key]?.dataType === 'number' ? 'number-td' : ''" >{{ item[header.key] }}</td>
+                  <td v-else 
+                    :class="labels[header.key]?.dataType === 'number' ? 'number-td' : ''" 
+                    @click="utils.selectCellText($event)"
+                  >{{ item[header.key] }}</td>
               </template>
             </tr>
           </v-hover>
@@ -154,6 +157,11 @@ import { useSelectRow } from "@/composables/useSelectRow.js";
 import { useGoToPage } from "@/composables/useGoToPage.js";
 
 const selectedLanguage = inject("selectedLanguage"); // 接收selectedLanguage 作為目前顯示的語言
+
+// 表格的名稱
+const formno = "cljhd";
+const tableNameMST = "cljhdmst";
+const tableNameITM = "cljhditm";
 
 // 取得當前語言的字典
 const fileName = import.meta.url.split("/").pop().split("%")[0];
@@ -225,7 +233,7 @@ const {
   isToggleAuditDisabled,
   isExportExcelDisabled,
   checkButtonFlags,
-} = useCheckButtonFlags("cldhd", form.audit);
+} = useCheckButtonFlags(formno, form.audit);
 
 const { selectedRow, selectRow, isRowSelected } = useSelectRow("header.cljhdmst.danno"); // 選取row相關的變數和函式
 
@@ -266,9 +274,8 @@ const deleteOrder = async () => {
         danno: selectedRow.value["header.cljhdmst.danno"],
       };
       const data = await utils.fetchData("cljhdDetails.php", params); //透過api獲取該筆單據的資料
-      const resultsData = data["cljhditm"]; // 獲取明細資料
-      //console.log("明細資料:", resultsData);
-      for (let item of resultsData) {
+      //console.log("明細資料:", data["table"]);
+      for (let item of data["table"]) {
         await utils.cljhdDelete(
           selectedRow.value["header.cljhdmst.danno"],
           item["header.cljhditm.id"]
@@ -276,7 +283,7 @@ const deleteOrder = async () => {
       }
     }
   } else {
-    alert("此單已審核，不能刪除");
+    alert("此單已審核，不能刪除"); // #BusinessLogic
   }
   await query(); // 重新載入表格
   selectedRow.value = null; // 清除選擇
@@ -294,8 +301,8 @@ const toggleAudit = async () => {
     selectedRow.value["header.cljhdmst.audit"] === "";
   const params = {
     danno: selectedRow.value["header.cljhdmst.danno"],
-    table: "cljhdmst",
-    formno: "cljhd",
+    table: tableNameMST,
+    formno: formno,
   };
 
   await utils.auditOrder(isAudit, params);

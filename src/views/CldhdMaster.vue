@@ -131,7 +131,10 @@
                       disabled
                     ></v-checkbox>
                   </td>
-                  <td v-else :class="labels[header.key]?.dataType === 'number' ? 'number-td' : ''" >{{ item[header.key] }}</td>
+                  <td v-else 
+                    :class="labels[header.key]?.dataType === 'number' ? 'number-td' : ''" 
+                    @click="utils.selectCellText($event)"
+                  >{{ item[header.key] }}</td>
               </template>
             </tr>
           </v-hover>
@@ -154,6 +157,11 @@ import { useSelectRow } from "@/composables/useSelectRow.js";
 import { useGoToPage } from "@/composables/useGoToPage.js";
 
 const selectedLanguage = inject("selectedLanguage"); // 接收selectedLanguage 作為目前顯示的語言
+
+// 表格的名稱
+const formno = "cldhd";
+const tableNameMST = "cldhdmst";
+const tableNameITM = "cldhditm";
 
 // 取得當前語言的字典
 const fileName = import.meta.url.split("/").pop().split("%")[0];
@@ -228,7 +236,7 @@ const {
   isToggleAuditDisabled,
   isExportExcelDisabled,
   checkButtonFlags,
-} = useCheckButtonFlags("cldhd", form.audit);
+} = useCheckButtonFlags(formno, form.audit);
 
 const results = ref([]); // 查詢結果
 
@@ -266,15 +274,15 @@ const deleteOrder = async () => {
     selectedRow.value["header.cldhdmst.audit"] === ""
   ) {
      const itmData = await utils.fetchData("cldhdDetails.php", {danno: selectedRow.value["header.cldhdmst.danno"]}); //透過api獲取該筆單據的明細資料
-      console.log("明細資料:", itmData["cldhditm"]);
-    for (let item of itmData["cldhditm"]) {
+      console.log("明細資料:", itmData["table"]);
+    for (let item of itmData["table"]) {
       if (item["header.cldhditm.getpcs"] > 0) {
-        alert("此單已有入庫, 不能廢單!");
+        alert("此單已有入庫, 不能廢單!");  // #BusinessLogic
         return;
       }
     }
     if (confirm("您確定要刪除整張單據嗎?")) {
-      for (let item of itmData["cldhditm"]) {
+      for (let item of itmData["table"]) {
         const params = {
           danno: selectedRow.value["header.cldhdmst.danno"],
           id: item["NA.cldhditm.id"],
@@ -285,7 +293,7 @@ const deleteOrder = async () => {
       alert("刪除完成");
     }
   } else {
-    alert("此單已審核，不能刪除");
+    alert("此單已審核，不能刪除"); // #BusinessLogic
   }
   await query(); // 重新載入表格
   selectedRow.value = null; // 清除選擇
@@ -303,8 +311,8 @@ const toggleAudit = async () => {
     selectedRow.value["header.cldhdmst.audit"] === "";
   const params = {
     danno: selectedRow.value["header.cldhdmst.danno"],
-    table: "cldhdmst",
-    formno: "cldhd",
+    table: tableNameMST,
+    formno: formno,
   };
 
   await utils.auditOrder(isAudit, params);

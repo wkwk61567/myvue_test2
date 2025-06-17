@@ -216,10 +216,10 @@ CllldDetails.vue,header,sp,spunit,單位,Unit,Đơn vị,6,fixed,FALSE,TRUE,,,,,
 CllldDetails.vue,header,clllditm,kcpcs,保稅庫存數,Bonded Inventory Quantity,Số lượng tồn kho bảo thuế,7,fixed,FALSE,TRUE,,,,,,number
 CllldDetails.vue,header,clllditm,kcpcsnx,內銷庫存數,Domestic Inventory Quantity,Số lượng tồn kho nội địa,8,fixed,FALSE,TRUE,,,,,,number
 CllldDetails.vue,header,clllditm,yfpcs,應發數,Quantity to be Issued,Số lượng cần xuất,9,fixed,FALSE,TRUE,,,,,,number
-CllldDetails.vue,header,clllditm,sqpcs,申領數,Applied Quantity,Số lượng yêu cầu,10,inputable,TRUE,TRUE,text-field,,,positive,,number
+CllldDetails.vue,header,clllditm,sqpcs,申領數,Applied Quantity,Số lượng yêu cầu,10,inputable,TRUE,TRUE,text-field,,,number,,number
 CllldDetails.vue,header,clllditm,pcs,保稅實發數,Actual Bonded Issued Quantity,Số lượng thực tế xuất (bảo thuế),11,inputable,TRUE,TRUE,text-field,,,atLeastOnePositive,actualNumbers,number
 CllldDetails.vue,header,clllditm,pcsnx,內銷實發數,Actual Domestic Issued Qty,Số lượng thực tế xuất (nội địa),12,inputable,TRUE,TRUE,text-field,,,atLeastOnePositive,actualNumbers,number
-CllldDetails.vue,header,clllditm,cbprice,單價,Unit Price,Đơn giá,13,unused,TRUE,TRUE,text-field,,,positive,,number
+CllldDetails.vue,header,clllditm,cbprice,單價,Unit Price,Đơn giá,13,unused,TRUE,TRUE,text-field,,,number,,number
 CllldDetails.vue,header,NA,pay,金額,Amount,Số tiền,14,unused,FALSE,TRUE,,,,,,number
 CllldDetails.vue,header,clllditm,note,備註,Remark,Ghi chú,15,inputable,TRUE,TRUE,text-field,,,,,
 ScgcdDialog.vue,pageTitle,NA,scgcdQuery,工令單物控向導,WO Material Control Wizard,Hướng dẫn kiểm soát vật tư WO,,,,,,,,,,

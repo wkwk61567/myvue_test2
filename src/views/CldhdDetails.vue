@@ -16,7 +16,7 @@
     />
     <ButtonsSaveDiscard
       :save="save"
-      :isSaveDisabled="!isFormComplete || isAnyFieldInvalid"
+      :isSaveDisabled="!isFormComplete || !isAnyFieldValid"
       :discard="() => setMode('view')"
       :isButtonsSaveDiscardVisible="mode !== 'view'"
     />
@@ -53,7 +53,7 @@
                   :style="{ backgroundColor: INPUT_COLORS[field.inputType] }"
                   :append-inner-icon="field.icon"
                   @click:append-inner="field.onClick"
-                  :error="isFormError(mode, field, form[field.column])"
+                  :error="isShowFormError (mode, field, form[field.column])"
                 />
               </template>
               <template v-else>
@@ -96,7 +96,7 @@
                       ? { type: 'date' }
                       : {}
                   "
-                  :error="isFormError(mode, field, form[field.column])"
+                  :error="isShowFormError (mode, field, form[field.column])"
                   @change="updateForm(field)"
                 />
               </template>
@@ -201,82 +201,24 @@
                 </td>
               </template>
               <!-- 使用迴圈動態生成表格的欄位 -->
-               <!-- 用v-if和v-else-if做特殊處理 -->
+              <!-- 用specialTableColumns做特殊處理 -->
               <template v-for="header in headers" :key="header.key">
                 <td
-                  v-if="header.key === 'header.cldhditm.spno'"
-                  :style="tableCellStyles[`${header.key}_td`]"
-                >
-                  <v-text-field
-                    v-model="item[header.key]"
-                    readonly
-                    :append-inner-icon="(mode !== 'view' && !(item['header.cldhditm.getpcs'] > 0)) ? 'mdi-dots-horizontal-circle' : null"
-                    @click:append-inner="openSpDialog(item)"
-                    :class="labels[header.key]?.dataType === 'number' ? 'number-field' : ''"
-                  ></v-text-field>
-                </td>
-                <td
-                  v-else-if="header.key === 'header.cldhditm.pcs'"
+                  v-if="specialTableColumns[header.key]"
                   :style="{
                     backgroundColor: INPUT_COLORS[labels[header.key].inputType],
                   }"
                 >
-                  <v-text-field
+                  <component
+                    :is="labels[header.key].componentType === 'checkbox'
+                      ? 'v-checkbox'
+                      : labels[header.key].componentType === 'select'
+                        ? 'v-select'
+                        : 'v-text-field'"
                     v-model="item[header.key]"
-                    :readonly="mode === 'view' || isFieldDisabled(item, header.key)"
-                    @change="utils.handleField(item, header.key); updateTable(item, header.key);"
-                    :error="!isFieldValid(item[header.key], header.key)"
-                    :error-messages="isFocusMechanismActive && !isFieldDisabled(item, header.key) ? '必填' : null"
-                    :ref="setFieldRef(`field_${item['NA.cldhditm.id']}_${header.key}`)"
-                    @focus="handleFocus(item, header.key, $event.target)"
-                    @blur="handleBlur(item, header.key, $event.target)"
-                    :class="labels[header.key]?.dataType === 'number' ? 'number-field' : ''"
-                  ></v-text-field>
-                </td>
-                <td
-                  v-else-if="header.key === 'header.cldhditm.price'"
-                  :style="tableCellStyles[`${header.key}_td`]"
-                >
-                  <v-text-field
-                    v-model="item[header.key]"
-                    :append-inner-icon="(mode !== 'view' && !isFieldDisabled(item, header.key) && spkindno === 3) ? 'mdi-dots-horizontal-circle' : null"
-                    @click:append-inner="openGclpriceDialog(item)"
-                    readonly
-                    :error="!isFieldValid(item[header.key], header.key)"
-                    :error-messages="isFocusMechanismActive && !isFieldDisabled(item, header.key) ? '必填' : null"
-                    :ref="setFieldRef(`field_${item['NA.cldhditm.id']}_${header.key}`)"
-                    @focus="handleFocus(item, header.key, $event.target)"
-                    @blur="handleBlur(item, header.key, $event.target)"
-                    :class="labels[header.key]?.dataType === 'number' ? 'number-field' : ''"
-                  ></v-text-field>
-                </td>
-                <td
-                  v-else-if="header.key === 'header.cldhditm.gdate'"
-                  :style="tableCellStyles[`${header.key}_td`]"
-                >
-                  <v-text-field
-                    v-model="item[header.key]"
-                    type="date"
-                    :readonly="mode === 'view' || isFieldDisabled(item, header.key)"
-                    :error="!isFieldValid(item[header.key], header.key)"
-                    :error-messages="isFocusMechanismActive && !isFieldDisabled(item, header.key) ? '必填' : null"
-                    @change="updateTable(item, header.key);"
-                    :ref="setFieldRef(`field_${item['NA.cldhditm.id']}_${header.key}`)"
-                    @focus="handleFocus(item, header.key, $event.target)"
-                    @blur="handleBlur(item, header.key, $event.target)"
-                    :class="labels[header.key]?.dataType === 'number' ? 'number-field' : ''"
-                  ></v-text-field>
-                </td>
-                <td
-                  v-else-if="header.key === 'header.cldhditm.note'"
-                  :style="tableCellStyles[`${header.key}_td`]"
-                >
-                  <v-text-field 
-                    v-model="item[header.key]"
-                    :readonly="mode === 'view' || isFieldDisabled(item, header.key)"
-                    @change="updateTable(item, header.key)"
-                    :class="labels[header.key]?.dataType === 'number' ? 'number-field' : ''"
-                  ></v-text-field>
+                    v-bind="specialTableColumns[header.key].getProps(item, header.key)"
+                    v-on="specialTableColumns[header.key].getEvents(item, header.key)"
+                  />
                 </td>
                 <td
                   v-else
@@ -318,7 +260,7 @@
             class="plus-button"
             color="primary"
             @click="openSpDialog(null)"
-            :disabled="!isFormComplete || isAnyFieldInvalid"
+            :disabled="!isFormComplete || !isAnyFieldValid"
           >+</v-btn>
         </div>
       </template>
@@ -341,12 +283,18 @@ import { useCheckButtonFlags } from "@/composables/useCheckButtonFlags.js";
 import { useI18nHeadersLabels } from "@/composables/useI18nHeadersLabels.js";
 import { useFieldValidate } from "@/composables/useFieldValidate.js";
 import { useSupplyDialog } from "@/composables/useSupplyDialog.js";
+import { useTableColumnConfig } from "@/composables/useTableColumnConfig.js";
 
 const props = defineProps({
   danno: String,
 }); // 從url接收
 const selectedLanguage = inject("selectedLanguage");
 const router = useRouter();
+
+// 表格的名稱
+const formno = "cldhd";
+const tableNameMST = "cldhdmst";
+const tableNameITM = "cldhditm";
 
 // 取得當前語言的字典
 const fileName = import.meta.url.split("/").pop().split("%")[0];
@@ -397,7 +345,7 @@ const selectSupplier = async (supplier) => {
   //  取得流水號(danno)
   const params = {
     prefix: `D_${form.supplyno}`,
-    table: "cldhdmst",
+    table: tableNameMST,
   };
   const data = await utils.fetchData(
     "getSerialNumber.php",
@@ -455,7 +403,8 @@ const handleInputSpQuery = () => {
     spQuery.spno.trim() === "" &&
     spQuery.spspec.trim() === "" &&
     spQuery.matno.trim() === "" &&
-    spQuery.spunit.trim() === ""
+    spQuery.spunit.trim() === "" && 
+    spQuery.spkindname.trim() === ""
   ) {
     spFiltered.value = sp.value;
   } else {
@@ -480,9 +429,15 @@ const handleInputSpQuery = () => {
           (item["header.sp.spunit"] &&
             item["header.sp.spunit"]
               .toUpperCase()
-              .includes(spQuery.spunit.toUpperCase())))
+              .includes(spQuery.spunit.toUpperCase()))) && 
+        (spQuery.spkindname.trim() === "" ||
+          (item["NA.spkind.spkindname"] &&
+            item["NA.spkind.spkindname"]
+              .toUpperCase()
+              .includes(spQuery.spkindname.toUpperCase())))
     );
   }
+  console.log("sp.value:", sp.value);
   console.log("spFiltered:", spFiltered.value);
 };
 const selectSp = async (item) => {
@@ -498,7 +453,7 @@ const selectSp = async (item) => {
   tempItem.dz = item.dz; // 單重(不可見)
   // 單價
   if (spkindno.value === 3) {
-    // 如果是卷料，使用pricekg; 否則使用price #Business Logic
+    // 如果是卷料，使用pricekg; 否則使用price #BusinessLogic
     if (item.clkind === '卷料') {
       console.log("卷料價格");
       if (item.pricekg1 > 0 || item.pricekg2 > 0) {
@@ -541,7 +496,7 @@ const selectSp = async (item) => {
         const dataSpno = await utils.fetchData("cldhditmUpdate.php", paramsSpno); // 透過api更新資料
         console.log("更新結果dataSpno:", dataSpno);
 
-        // 更新單價，#Business Logic
+        // 更新單價，#BusinessLogic
         if(spkindname.value === "原材料"){
           item["header.cldhditm.pay"] = parseFloat(
             (item["header.cldhditm.kg"] * item["header.cldhditm.price"]).toFixed(2)
@@ -580,7 +535,7 @@ const selectSp = async (item) => {
 };
 
 
-//  輔料價格的小視窗的狀態和方法
+//  輔料價格的小視窗的狀態和方法(網頁版無法選擇輔料價格)
 const isClpriceDialogVisible = ref(false); // 輔料價格的小視窗的顯示狀態
 const clpriceQuery = reactive({
   supplyno: "",
@@ -667,7 +622,7 @@ const selectGclprice = async (item) => {
   const key = "header.cldhditm.price"; // 要更新的欄位
   const priceOld = selecrRow[key]; // 原先的價格
 
-  // 填入單價欄位，如果是卷料，則使用 pricekg，否則使用 price #Business Logic
+  // 填入單價欄位，如果是卷料，則使用 pricekg，否則使用 price #BusinessLogic
   if (selecrRow.clkind === '卷料') {
     const priceTypeName = "header.gclprice.pricekg" + priceType.value;
     console.log("priceTypeName:", priceTypeName);
@@ -717,7 +672,6 @@ const selectGclprice = async (item) => {
   }
   
   isGclpriceDialogVisible.value = false; // 關閉原材料價格查詢視窗
-  //updateTable(selecrRow, "header.cldhditm.price");
 };
 
 
@@ -752,21 +706,21 @@ const setMode = async (newMode) => {
     const userData = await utils.fetchData("checkAuthenticated.php");
     console.log("用戶資料：", userData);
     form.maker = userData.powername;
-
-    mode.value = "add";
   } else if (newMode === "edit") {
     // 設定為修改模式
-    if (form.audit === null || form.audit === "") {
-      mode.value = "edit";
-    } else {
-      alert("此單已審核，不能修改");
+    if (form.audit !== null && form.audit !== "") {
+      alert("此單已審核，不能修改");  // #BusinessLogic
+      return;
     }
-  } else {
+  } else if (newMode === "view") {
     // 設定為查看模式
     form.danno = props.danno;
     await initializeData(); // 重新加載資料
-    mode.value = "view";
+  } else {
+    console.error("未知的模式：", newMode);
+    return;
   }
+  mode.value = newMode;
 };
 
 const columnsForSum = ref([
@@ -782,7 +736,7 @@ const displayHeaders = computed(() => {
     currentHeaders.unshift({ title: "", key: "deleteButton" });
   }
   return currentHeaders;
-}); // 加入編輯和刪除按鈕
+}); // 加入刪除按鈕
 
 const initializeData = async () => {
   // 加載資料
@@ -825,21 +779,11 @@ const initializeData = async () => {
   console.log("最後一筆的 id：", idLastInDB.value);
   idCurrent.value = idLastInDB.value; // 設置目前的 id 為DB最後一筆的 id
 
-  // 這裡應該要根據column找到對應的dataType === "date"的欄位 將日期切割成 YYYY-MM-DD
+  // 這裡應該要根據column找到對應的dataType === "date"的欄位，將日期切割成 YYYY-MM-DD，但是這樣會變得很複雜
   Object.keys(form).forEach(key => {
     form[key] = data["form"][0][key];
   }); // 將所有 form 欄位的值設為查詢結果的對應值
   form.ddate = form.ddate.date.split(" ")[0]; // 將日期切割成 YYYY-MM-DD
-
-  /*
-  form.supplyno = data["form"][0].supplyno;
-  form.supplyname = data["form"][0].supplyname;
-  //form.danno = data["form"][0].danno; // danno 由 url 接收
-  form.ddate = data["form"][0].ddate.date.split(" ")[0]; // 將日期格式化為 YYYY-MM-DD
-  form.demo = data["form"][0].demo;
-  form.maker = data["form"][0].maker;
-  form.audit = data["form"][0].audit;
-  */
 
   spkindname.value = data["form"][0].supplykind; // 在網頁版, spkindname與供方類別對應
   spkindno.value =  spkindnoOptions.value.find(
@@ -917,7 +861,7 @@ const updateForm = async (field) => {
   // 檢查交貨日期是否早於訂購日期 #BusinessLogic
   for (const item of results.value) {
     if (new Date(item["header.cldhditm.gdate"]) < new Date(form.ddate)) {
-      alert("交貨日期不能早於訂購日期");
+      alert("交貨日期不能早於訂購日期"); // #BusinessLogic
       form.ddate = "";
       return;
     }
@@ -944,8 +888,8 @@ const updateForm = async (field) => {
   }
 };
 
-const updateTable= async (item, key) => {
-  // 更新form的欄位
+const updateTable = async (item, key) => {
+  // 更新table的欄位
 
   // 處理pcs欄位的變更 #BusinessLogic
   if (key === "header.cldhditm.pcs") {
@@ -1009,7 +953,7 @@ const deleteRow = async (item) => {
   // 刪行
   if (item["NA.cldhditm.id"] <= idLastInDB.value) {
     if (item["header.cldhditm.getpcs"] > 0) {
-      alert("此項已開始入倉, 不能刪行!");
+      alert("此項已開始入倉, 不能刪行!");  // #BusinessLogic
       return;
     }
     const confirmMessage = orderInDBNum.value === 1 ? "您確定要刪除整張單據嗎?" : "您確定要刪除?";
@@ -1054,7 +998,7 @@ const deleteOrder = async () => {
   if (form.audit === null || form.audit === "") {
     for (let item of results.value) {
       if (item["header.cldhditm.getpcs"] > 0) {
-        alert("此單已有入庫, 不能廢單!");
+        alert("此單已有入庫, 不能廢單!");  // #BusinessLogic
         return;
       }
     }
@@ -1076,7 +1020,7 @@ const deleteOrder = async () => {
       }
     }
   } else {
-    alert("此單已審核，不能刪除");
+    alert("此單已審核，不能刪除"); // #BusinessLogic
   }
 };
 
@@ -1085,8 +1029,8 @@ const toggleAudit = async () => {
   const isAudit = form.audit === null || form.audit === "";
   const params = {
     danno: form.danno,
-    table: "cldhdmst",
-    formno: "cldhd",
+    table: tableNameMST,
+    formno: formno,
   };
 
   await utils.auditOrder(isAudit, params); // 切換資料庫中的審核狀態
@@ -1103,7 +1047,7 @@ const {
   isToggleAuditDisabled,
   isExportExcelDisabled,
   checkButtonFlags,
-} = useCheckButtonFlags("cldhd", form.audit);
+} = useCheckButtonFlags(formno, form.audit);
 
 
 // 實現凍結表頭和欄位的功能, 並動態計算最小寬度
@@ -1182,7 +1126,7 @@ const tableCellStyles = computed(() => {
   });
   
   return styles;
-});
+}); // 儲存表格中的th和td的樣式
 
 
 const formRows = computed(() => {
@@ -1213,7 +1157,7 @@ const formRows = computed(() => {
 console.log("formRows:", formRows.value);
 
 
-// 驗證表格欄位是否已填寫
+// 驗證表格欄位是否已填寫正確
 const fieldRefs = reactive({});
 const setFieldRef = (refName) => (el) => {
   if (el) {
@@ -1222,21 +1166,58 @@ const setFieldRef = (refName) => (el) => {
 };
 const {
   isFieldValid,
+  getInvalidGroupNames,
   isRowFieldsValid,
-  isAnyFieldInvalid,
+  isAnyFieldValid,
   handleFocus,
   handleBlur,
   isFieldDisabled,
   focusNextInvalidField,
   isFocusMechanismActive,
-  isFormError,
+  isShowFormError ,
   isFormComplete,
 } = useFieldValidate(results, form, formRows.value, fieldRefs, labels.value);
 
+const {
+  numberColumnsConfig,
+  textColumnsConfig,
+  dateColumnsConfig,
+} = useTableColumnConfig(mode, labels, isFieldValid, getInvalidGroupNames, handleFocus, handleBlur, isFieldDisabled, isFocusMechanismActive, updateTable, setFieldRef);
+
+// 表格中需要特殊處理的欄位
+const specialTableColumns = {
+  "header.cldhditm.spno": {
+    getProps: (item, key) => ({
+      readonly: true,
+      'append-inner-icon': (mode.value !== 'view' && !(item['header.cldhditm.getpcs'] > 0)) ? 'mdi-dots-horizontal-circle' : null,
+      class: labels.value[key]?.dataType === 'number' ? 'number-field' : ''
+    }),
+    getEvents: (item, key) => ({
+      'click:append-inner': () => openSpDialog(item)
+    })
+  },
+  "header.cldhditm.pcs": numberColumnsConfig(),
+  "header.cldhditm.price": {
+    getProps: (item, key) => ({
+      readonly: true,
+      'append-inner-icon': (mode.value !== 'view' && !isFieldDisabled(item, key) && spkindno.value === 3) ? 'mdi-dots-horizontal-circle' : null,
+      error: !isFieldValid(item[key], key),
+      'error-messages': isFocusMechanismActive.value && !isFieldDisabled(item, key) ? '必填' : null,
+      ref: setFieldRef(`field_${item['NA.cldhditm.id']}_${key}`),
+      class: labels.value[key]?.dataType === 'number' ? 'number-field' : ''
+    }),
+    getEvents: (item, key) => ({
+      'click:append-inner': () => openGclpriceDialog(item),
+      focus: (event) => handleFocus(item, key, event.target),
+      blur: (event) => handleBlur(item, key, event.target)
+    })
+  },
+  "header.cldhditm.gdate": dateColumnsConfig(),
+  "header.cldhditm.note": textColumnsConfig(),
+};
+
 // --- Lifecycle Hooks ---
 onMounted(async () => {
-  // 原本的created, 應該可以拿出來直接執行?
-
   spkindnoOptions.value = await utils.fetchCategories(); // 取得收貨類別選項
   paynoOptions.value = await utils.fetchData("pay.php", {}); // 取得幣別選項
 

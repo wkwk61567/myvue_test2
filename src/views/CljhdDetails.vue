@@ -16,7 +16,7 @@
     />
     <ButtonsSaveDiscard
       :save="save"
-      :isSaveDisabled="!isFormComplete || isAnyFieldInvalid"
+      :isSaveDisabled="!isFormComplete || !isAnyFieldValid"
       :discard="() => setMode('view')"
       :isButtonsSaveDiscardVisible="mode !== 'view'"
     />
@@ -52,7 +52,7 @@
                   :style="{ backgroundColor: INPUT_COLORS[field.inputType] }"
                   :append-inner-icon="field.icon"
                   @click:append-inner="field.onClick"
-                  :error="isFormError(mode, field, form[field.column])"
+                  :error="isShowFormError (mode, field, form[field.column])"
                 />
               </template>
               <template v-else>
@@ -73,7 +73,7 @@
                       : field.componentType === 'date'
                         ? { type: 'date' }
                         : {}"
-                  :error="isFormError(mode, field, form[field.column])"
+                  :error="isShowFormError (mode, field, form[field.column])"
                   @change="updateForm(field)"
                   @update:modelValue="field.componentType === 'select' ? updateForm(field) : null"
                 />
@@ -158,44 +158,29 @@
                 </td>
               </template>
               <!-- 使用迴圈動態生成表格的欄位 -->
+              <!-- 用specialTableColumns做特殊處理 -->
+              <!-- 暫收重量的背景顏色會隨是否允許輸入而變化 -->
               <template v-for="header in headers" :key="header.key">
-                <!-- jhpcs和jhkg做特殊處理 -->
-                <td v-if="header.key === 'header.cljhditm.jhpcs'"
-                  :style="{ backgroundColor: INPUT_COLORS[labels[header.key].inputType] }"
+                <td
+                  v-if="specialTableColumns[header.key]"
+                  :style="{
+                    backgroundColor: header.key !== 'header.cljhditm.jhkg'
+                    ? INPUT_COLORS[labels[header.key].inputType]
+                    : !(item.spkindno === '3' && (item.clkind === '板料' || item.clkind === '鋁擠型'))
+                      ? INPUT_COLORS['fixed']
+                      : INPUT_COLORS['inputable'],
+                  }"
                 >
-                  <v-text-field
+                  <component
+                    :is="labels[header.key].componentType === 'checkbox'
+                      ? 'v-checkbox'
+                      : labels[header.key].componentType === 'select'
+                        ? 'v-select'
+                        : 'v-text-field'"
                     v-model="item[header.key]"
-                    type="text"
-                    :readonly="mode === 'view' || isFieldDisabled(item, header.key)"
-                    @change="
-                      utils.handleField(item, header.key);
-                      updateTable(item, header.key);
-                    "
-                    :error="!isFieldValid(item[header.key], header.key)"
-                    :error-messages="isFocusMechanismActive && !isFieldDisabled(item, header.key) ? '必填' : null"
-                    :ref="setFieldRef(`field_${item['NA.cldhditm.id']}_${header.key}`)"
-                    @focus="handleFocus(item, header.key, $event.target)"
-                    @blur="handleBlur(item, header.key, $event.target)"
-                    :class="labels[header.key]?.dataType === 'number' ? 'number-field' : ''"
-                  ></v-text-field>
-                </td>
-                <td v-else-if="header.key === 'header.cljhditm.jhkg'"
-                  :style="{ backgroundColor: !(item.spkindno === '3' && (item.clkind === '板料' || item.clkind === '鋁擠型')) ? INPUT_COLORS['fixed'] : INPUT_COLORS['inputable'] }">
-                  <v-text-field
-                    v-model="item['header.cljhditm.jhkg']"
-                    type="text"
-                    :readonly="mode === 'view' || !(item.spkindno === '3' && (item.clkind === '板料' || item.clkind === '鋁擠型')) || isFieldDisabled(item, header.key)"
-                    @change="
-                      utils.handleField(item, 'header.cljhditm.jhkg');
-                      updateTable(item, header.key);
-                    "
-                    :error="!isFieldValid(item[header.key], header.key)"
-                    :error-messages="isFocusMechanismActive && !isFieldDisabled(item, header.key) ? '必填' : null"
-                    :ref="setFieldRef(`field_${item['NA.cldhditm.id']}_${header.key}`)"
-                    @focus="handleFocus(item, header.key, $event.target)"
-                    @blur="handleBlur(item, header.key, $event.target)"
-                    :class="labels[header.key]?.dataType === 'number' ? 'number-field' : ''"
-                  ></v-text-field>
+                    v-bind="specialTableColumns[header.key].getProps(item, header.key)"
+                    v-on="specialTableColumns[header.key].getEvents(item, header.key)"
+                  />
                 </td>
                 <td v-else
                   :style="{ backgroundColor: INPUT_COLORS[labels[header.key].inputType] }"
@@ -237,7 +222,7 @@
             class="plus-button"
             color="primary"
             @click="() => openCallOrdersDialog(form.supplyno)"
-            :disabled="!isFormComplete || isAnyFieldInvalid"
+            :disabled="!isFormComplete || !isAnyFieldValid"
           >+</v-btn>
         </div>
       </template>
@@ -259,12 +244,18 @@ import { useI18nHeadersLabels } from "@/composables/useI18nHeadersLabels.js";
 import { useOrderDialog } from "@/composables/useOrderDialog.js";
 import { useFieldValidate } from "@/composables/useFieldValidate.js";
 import { useSupplyDialog } from "@/composables/useSupplyDialog.js";
+import { useTableColumnConfig } from "@/composables/useTableColumnConfig.js";
 
 const props = defineProps({
   danno: String,
 }); // 從url接收
 const selectedLanguage = inject("selectedLanguage");
 const router = useRouter();
+
+// 表格的名稱
+const formno = "cljhd";
+const tableNameMST = "cljhdmst";
+const tableNameITM = "cljhditm";
 
 // 取得當前語言的字典
 const fileName = import.meta.url.split("/").pop().split("%")[0];
@@ -299,7 +290,7 @@ const formSelectOptions = {
 }; // form中的所有選單的選項
 
 const results = ref([]); // 查詢結果(表格的內容)
-const idLastInDB = ref("0"); // 最後一筆已儲存的row的 id 用來分隔原有的row和新增的row //
+const idLastInDB = ref("0"); // 最後一筆已儲存的row的 id，用來分隔原有的row和新增的row //
 const idCurrent = ref(0); // 目前最新的一筆row的 id
 
 const reset = () => {
@@ -324,7 +315,7 @@ const {
   selectOrder, // 暫時儲存訂單到下方的表格
 } = useOrderDialog(results, idCurrent);
 
-const orderInDBNum = ref(0); // 原本的行數 用來判斷是不是只剩一個row 是的話會在刪除此row後刪除整張收貨單
+const orderInDBNum = ref(0); // 原本的行數，用來判斷是不是只剩一個row，是的話會在刪除此row後刪除整張收貨單
 
 const mode = ref("view"); // 當前模式，默認為查看模式
 const setMode = async (newMode) => { 
@@ -338,7 +329,7 @@ const setMode = async (newMode) => {
     //  取得流水號(danno)
     const params = {
       prefix: "D_PC",
-      table: "cljhdmst",
+      table: tableNameMST,
     };
     const dannoData = await utils.fetchData("getSerialNumber.php", params);
     form.danno = dannoData[0].NewDanno;
@@ -347,21 +338,21 @@ const setMode = async (newMode) => {
     const userData = await utils.fetchData("checkAuthenticated.php");
     console.log("用戶資料：", userData);
     form.maker = userData.powername;
-
-    mode.value = "add";
   } else if (newMode === "edit") {
     // 設定為修改模式
-    if (form.audit === null || form.audit === "") {
-      mode.value = "edit";
-    } else {
-      alert("此單已審核，不能修改");
+    if (form.audit !== null && form.audit !== "") {
+      alert("此單已審核，不能修改");  // #BusinessLogic
+      return;
     }
-  } else {
+  } else if (newMode === "view") {
     // 設定為查看模式
     form.danno = props.danno;
     await initializeData(); // 重新加載資料
-    mode.value = "view";
+  } else {
+    console.error("未知的模式：", newMode);
+    return;
   }
+  mode.value = newMode;
 }
 
 // 需要加總的欄位名稱
@@ -380,7 +371,7 @@ const displayHeaders = computed(() => {
     currentHeaders.unshift({ title: "", key: "deleteButton" });
   }
   return currentHeaders;
-}); // 加入編輯和刪除按鈕(以後的版本會把編輯按鈕移除)
+}); // 加入刪除按鈕
 
 const initializeData = async () => {
   // 加載資料
@@ -415,20 +406,6 @@ const initializeData = async () => {
   }); // 將所有 form 欄位的值設為查詢結果的對應值
   form.qcnot = form.qcnot === 1; // 免檢，轉換為布林值
   form.ddate = form.ddate.date.split(" ")[0]; // 將日期切割成 YYYY-MM-DD
-
-  /*
-  form.ddate = data["form"][0].ddate.date.split(" ")[0]; // 將日期格式化為 YYYY-MM-DD
-  form.ttime = data["form"][0].ttime;
-  form.spkindname = data["form"][0].spkindname;
-  form.dannobase = data["form"][0].dannobase;
-  form.ckkind = data["form"][0].ckkind;
-  form.supplyno = data["form"][0].supplyno;
-  form.supplyname = data["form"][0].supplyname;
-  form.pjdno = data["form"][0].pjdno;
-  form.demo = data["form"][0].demo;
-  form.maker = data["form"][0].maker;
-  form.audit = data["form"][0].audit;
-  */
     
   ckkindOptions.value = await utils.fetchCkkindOptions(
     form.spkindname,
@@ -561,7 +538,7 @@ const updateForm = async (field) => {
 };
 
 const updateTable = async (item, key) => {
-  // 表格的欄位變動
+  // 更新table的欄位
 
   // 更新欄位 #BusinessLogic
   if (key === "header.cljhditm.jhpcs" || key === "header.cljhditm.jhkg") {
@@ -574,7 +551,6 @@ const updateTable = async (item, key) => {
     卷料（spkindno=3, clkind =‘卷料’）：cljhd_jlccb
     輔料（spkindno=[1, 2, 4, 5]）：cljhd_flccb
     */
-    console.log("能再多收的百分比:", limitPercentage.value);
     let itemLimitPercentage = 0;
     if (item.spkindno === "3" && item.clkind === "卷料") {
       itemLimitPercentage = parseFloat(limitPercentage.value["cljhd_blccb"]);
@@ -682,7 +658,7 @@ const deleteRow = (item) => {
   // 刪行
   if (item["header.cljhditm.id"] <= idLastInDB.value) {
     if (item["header.cljhditm.pcs"] > 0) {
-      alert("此項已品管入庫,不能刪除!");
+      alert("此項已品管入庫,不能刪除!"); // #BusinessLogic
       return;
     } else {
       alert("目前預設免檢是打勾的, 所有保存的訂單都會自動入庫, 無法單行刪除");
@@ -718,7 +694,7 @@ const deleteOrder = async () => {
       }
     }
   } else {
-    alert("此單已審核，不能刪除");
+    alert("此單已審核，不能刪除"); // #BusinessLogic
   }
 };
 
@@ -727,8 +703,8 @@ const toggleAudit = async () => {
   const isAudit = form.audit === null || form.audit === "";
   const params = {
     danno: form.danno,
-    table: "cljhdmst",
-    formno: "cljhd",
+    table: tableNameMST,
+    formno: formno,
   };
 
   await utils.auditOrder(isAudit, params); // 切換資料庫中的審核狀態
@@ -745,7 +721,7 @@ const {
   isToggleAuditDisabled,
   isExportExcelDisabled,
   checkButtonFlags,
-} = useCheckButtonFlags("cljhd", form.audit);
+} = useCheckButtonFlags(formno, form.audit);
 
 // 上方的欄位
 const formRows = computed(() => {
@@ -756,7 +732,7 @@ const formRows = computed(() => {
       {
         ...labels.value['label.cljhdmst.supplyno'],
         componentType: "icon-text-field",
-        icon: (mode.value === "add" && !isAnyFieldInvalid.value) ?"mdi-dots-horizontal-circle" : null,
+        icon: (mode.value === "add" && isAnyFieldValid.value) ?"mdi-dots-horizontal-circle" : null,
         onClick: openDialog,
       },
       // 調用訂單按鈕
@@ -766,7 +742,7 @@ const formRows = computed(() => {
         isAllowBlank: true,
         cols: '1',
         onClick: () => openCallOrdersDialog(form.supplyno),
-        disabled: () => mode.value === 'view' || isAnyFieldInvalid.value || !isFormComplete.value,
+        disabled: () => mode.value === 'view' || !isAnyFieldValid.value || !isFormComplete.value,
         name: labels.value["button.NA.callOrder"].name
       },
       labels.value['label.cljhdmst.ckkind'],
@@ -782,7 +758,7 @@ console.log("formRows:", formRows.value);
 
 const limitPercentage = ref(0); // 收貨數量的限制百分比
 
-// 驗證表格欄位是否已填寫
+// 驗證表格欄位是否已填寫正確
 const fieldRefs = reactive({});
 const setFieldRef = (refName) => (el) => {
   if (el) {
@@ -791,21 +767,55 @@ const setFieldRef = (refName) => (el) => {
 };
 const {
   isFieldValid,
+  getInvalidGroupNames,
   isRowFieldsValid,
-  isAnyFieldInvalid,
+  isAnyFieldValid,
   handleFocus,
   handleBlur,
   isFieldDisabled,
   focusNextInvalidField,
   isFocusMechanismActive,
-  isFormError,
+  isShowFormError ,
   isFormComplete,
 } = useFieldValidate(results, form, formRows.value, fieldRefs, labels.value);
 
+const {
+  numberColumnsConfig,
+  textColumnsConfig,
+  dateColumnsConfig,
+} = useTableColumnConfig(mode, labels, isFieldValid, getInvalidGroupNames, handleFocus, handleBlur, isFieldDisabled, isFocusMechanismActive, updateTable, setFieldRef);
+
+// 表格中需要特殊處理的欄位
+const specialTableColumns = {
+  "header.cljhditm.jhpcs": numberColumnsConfig(),
+  "header.cljhditm.jhkg": {
+    getProps: (item, key) => ({
+      ref: setFieldRef(`field_${item["NA.cldhditm.id"]}_${key}`),
+      readonly: mode.value === 'view' || !(item.spkindno === '3' && (item.clkind === '板料' || item.clkind === '鋁擠型')) || isFieldDisabled(item, key),
+      class: labels.value[key]?.dataType === "number" ? "number-field" : "",
+      error:
+        !isFieldValid(item[key], key) ||
+        labels.value[key].validationGroup === getInvalidGroupNames(item)[0],
+      "error-messages":
+        isFocusMechanismActive.value && !isFieldDisabled(item, key)
+          ? "必填"
+          : labels.value[key].validationGroup === getInvalidGroupNames(item)[0]
+          ? "擇一填寫"
+          : null,
+    }),
+    getEvents: (item, key) => ({
+      focus: (event) => handleFocus(item, key, event.target),
+      blur: (event) => handleBlur(item, key, event.target),
+      change: () => {
+        utils.handleField(item, key);
+        updateTable(item, key);
+      },
+    }),
+  },
+};
+
 // --- Lifecycle Hooks ---
 onMounted(async () => {
-  // 原本的created, 應該可以拿出來直接執行?
-
   spkindnoOptions.value = await utils.fetchCategories(); // 取得收貨類別選項
   console.log("spkindnoOptions:", spkindnoOptions.value);
 

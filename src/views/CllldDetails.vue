@@ -16,7 +16,7 @@
     />
     <ButtonsSaveDiscard
       :save="save"
-      :isSaveDisabled="!isFormComplete || isAnyFieldInvalid"
+      :isSaveDisabled="!isFormComplete || !isAnyFieldValid"
       :discard="() => setMode('view')"
       :isButtonsSaveDiscardVisible="mode !== 'view'"
     />
@@ -54,7 +54,7 @@
                   :style="{ backgroundColor: INPUT_COLORS[field.inputType] }"
                   :append-inner-icon="field.icon"
                   @click:append-inner="field.onClick"
-                  :error="isFormError(mode, field, form[field.column])"
+                  :error="isShowFormError (mode, field, form[field.column])"
                 />
               </template>
               <template v-else>
@@ -98,7 +98,7 @@
                       ? { type: 'date' }
                       : {}
                   "
-                  :error="isFormError(mode, field, form[field.column])"
+                  :error="isShowFormError (mode, field, form[field.column])"
                   @change="updateForm(field)"
                   @update:modelValue="field.componentType === 'select' ? updateForm(field) : null"
                 />
@@ -179,7 +179,7 @@
                 </td>
               </template>
               <!-- 使用迴圈動態生成表格的欄位 -->
-              <!-- 用v-if和v-else-if做特殊處理 -->
+              <!-- 用specialTableColumns做特殊處理 -->
               <template v-for="header in headers" :key="header.key">
                 <td
                   v-if="specialTableColumns[header.key]"
@@ -233,11 +233,19 @@
       <!-- 下方的加號 -->
       <template v-if="mode !== 'view'">
         <div class="container">
+          <v-tooltip
+            v-if="!isFormComplete"
+            location="top"
+            activator="parent"
+            open-on-hover
+          >
+            請選擇類別!
+          </v-tooltip>
           <v-btn
             class="plus-button"
             color="primary"
             @click="form.kind === '包材領料' ? openSpDialog() : openScgcdDialog()"
-            :disabled="!isFormComplete || isAnyFieldInvalid"
+            :disabled="!isFormComplete || !isAnyFieldValid"
             >+</v-btn
           >
         </div>
@@ -266,12 +274,18 @@ import SpDialog from "@/components/SpDialog.vue";
 import { useCheckButtonFlags } from "@/composables/useCheckButtonFlags.js";
 import { useI18nHeadersLabels } from "@/composables/useI18nHeadersLabels.js";
 import { useFieldValidate } from "@/composables/useFieldValidate.js";
+import { useTableColumnConfig } from "@/composables/useTableColumnConfig.js";
 
 const props = defineProps({
   danno: String,
 }); // 從url接收
 const selectedLanguage = inject("selectedLanguage");
 const router = useRouter();
+
+// 表格的名稱
+const formno = "cllld";
+const tableNameMST = "cllldmst";
+const tableNameITM = "clllditm";
 
 // 取得當前語言的字典
 const fileName = import.meta.url.split("/").pop().split("%")[0];
@@ -292,65 +306,6 @@ const formSelectOptions = {
   kind: ref(["生產領料", "生產制損", "外發領料", "包材領料"]), // 類別選項，資料庫中沒有對應的紀錄，所以這裡直接定義選項
 }; // form中的所有選單的選項
 
-const numberColumnsConfig = (hasValidation = false) => ({
-  // 數字欄位的通用配置
-  getProps: (item, headerKey) => ({
-    readonly: mode.value === 'view' || isFieldDisabled(item, headerKey),
-    class: labels.value[headerKey]?.dataType === 'number' ? 'number-field' : '',
-    ...(hasValidation && {
-      error: !isRowFieldsValid(item) && labels.value[headerKey].validationGroup !== null,
-      'error-messages': isRowFieldsValid(item)
-        ? null
-        : labels.value[headerKey].validationGroup !== null
-          ? '擇一填寫'
-          : null,
-    }),
-  }),
-  getEvents: (item, headerKey) => ({
-    change: () => {
-      utils.handleField(item, headerKey);
-      updateTable(item, headerKey);
-    },
-  }),
-});
-
-// 表格中需要特殊處理的欄位
-const specialTableColumns = {
-  'header.clllditm.gcdno': {
-    getProps: (item, headerKey) => ({
-      readonly: true,
-      'append-inner-icon': mode.value !== 'view' ? 'mdi-dots-horizontal-circle' : null,
-      class: labels.value[headerKey]?.dataType === 'number' ? 'number-field' : '',
-    }),
-    getEvents: (item, headerKey) => ({
-      'click:append-inner': () => form.kind === '包材領料' ? null : openScgcdDialog(),
-    }),
-  },
-  'header.clllditm.spno': {
-    getProps: (item, headerKey) => ({
-      readonly: true,
-      'append-inner-icon': mode.value !== 'view' ? 'mdi-dots-horizontal-circle' : null,
-      class: labels.value[headerKey]?.dataType === 'number' ? 'number-field' : '',
-    }),
-    getEvents: (item, headerKey) => ({
-      'click:append-inner': () => item['header.clllditm.gcdno'] === '' ? openSpDialog(item) : openScgcdDialog(item['header.clllditm.gcdno']),
-    }),
-  },
-  'header.clllditm.sqpcs': numberColumnsConfig(true),
-  'header.clllditm.pcs': numberColumnsConfig(true),
-  'header.clllditm.pcsnx': numberColumnsConfig(true),
-  'header.clllditm.cbprice': numberColumnsConfig(true),
-  'header.clllditm.note': {
-    getProps: (item, headerKey) => ({
-      readonly: mode.value === 'view' || isFieldDisabled(item, headerKey),
-      class: labels.value[headerKey]?.dataType === 'number' ? 'number-field' : '',
-    }),
-    getEvents: (item, headerKey) => ({
-      change: () => updateTable(item, headerKey),
-    }),
-  },
-};
-
 const netMaterialRatio = 0.8; // (llpcs + tlpcs) / yfpcs 必須小於此比例才可以做制損領料, 應該要再檢查這個數字是否合理
 
 // 工令單物控向導的小視窗的狀態和方法
@@ -366,6 +321,13 @@ const scgcdQuery = reactive({
 const openScgcdDialog = (gcdno = "") => {
   // 打開工令單物控向導的小視窗(調用發料單)
   scgcdQuery.gcdno = gcdno;
+
+  // 每次工令單物控向導的小視窗打開時，需清空查詢欄位，否則會殘留前次輸入的內容
+  scgcdQuery.spno = "";
+  scgcdQuery.status = "pending"; // 預設查詢狀態為未完成
+  scgcdQuery.flag = "";
+  scgcdQuery.spkindno = "";
+    
   isScgcdDialogVisible.value = true;
 };
 const selectScgcd = (item) => {
@@ -532,6 +494,7 @@ const selectSp = async (item) => {
   }
 
   isSpDialogVisible.value = false; // 關閉材料查詢視窗
+  // 此頁面沒有需要聚焦的必填欄位
   //await nextTick(); // 等待DOM更新後，將焦點設置到新添加的行
   //focusNextInvalidField(tempItem); // 將焦點移到下一個未填寫的欄位
 };
@@ -564,7 +527,7 @@ const setMode = async (newMode) => {
     //  取得流水號(danno)
     const params = {
       prefix: `D_ML`,
-      table: "cllldmst",
+      table: tableNameMST,
     };
     const dannoData = await utils.fetchData("getSerialNumber.php", params);
     form.danno = dannoData[0].NewDanno;
@@ -573,21 +536,21 @@ const setMode = async (newMode) => {
     const userData = await utils.fetchData("checkAuthenticated.php");
     console.log("用戶資料：", userData);
     form.maker = userData.powername;
-
-    mode.value = "add";
   } else if (newMode === "edit") {
     // 設定為修改模式
-    if (form.audit === null || form.audit === "") {
-      mode.value = "edit";
-    } else {
-      alert("此單已審核，不能修改");
+    if (form.audit !== null && form.audit !== "") {
+      alert("此單已審核，不能修改");  // #BusinessLogic
+      return;
     }
-  } else {
+  } else if( newMode === "view") {
     // 設定為查看模式
     form.danno = props.danno;
     await initializeData(); // 重新加載資料
-    mode.value = "view";
+  } else {
+    console.error("未知的模式:", newMode);
+    return;
   }
+  mode.value = newMode;
 };
 
 const columnsForSum = ref([
@@ -604,7 +567,7 @@ const displayHeaders = computed(() => {
     currentHeaders.unshift({ title: "", key: "deleteButton" });
   }
   return currentHeaders;
-}); // 加入編輯和刪除按鈕
+}); // 加入刪除按鈕
 
 const initializeData = async () => {
   // 加載資料
@@ -644,16 +607,6 @@ const initializeData = async () => {
     form[key] = data["form"][0][key];
   }); // 將所有 form 欄位的值設為查詢結果的對應值
   form.ddate = form.ddate.date.split(" ")[0]; // 將日期切割成 YYYY-MM-DD
-
-  /*
-  //form.danno = data["form"][0].danno; // danno 由 url 接收
-  form.kind = data["form"][0].kind;
-  form.dannobase = data["form"][0].dannobase;
-  form.ddate = data["form"][0].ddate.date.split(" ")[0]; // 將日期格式化為 YYYY-MM-DD
-  form.demo = data["form"][0].demo;
-  form.maker = data["form"][0].maker;
-  form.audit = data["form"][0].audit;
-  */
 
   orderInDBNum.value = results.value.length; // 取得原本的行數
 
@@ -766,7 +719,7 @@ const updateForm = async (field) => {
 };
 
 const updateTable = async (item, key) => {
-  // 表格的欄位變動
+  // 更新table的欄位
 
   // 檢查數量是否符合限制 #BusinessLogic
   if (key === "header.clllditm.pcs" || key === "header.clllditm.pcsnx") {
@@ -794,6 +747,7 @@ const updateTable = async (item, key) => {
     else if (form.kind === "包材領料") {
       // 包材領料
       // 實發數不能超過對應的庫存數, 但是其他類別沒有這個限制
+      // #BusinessLogic
       if (
         parseFloat(item["header.clllditm.pcs"])  >
         parseFloat(item["header.clllditm.kcpcs"])
@@ -914,7 +868,7 @@ const deleteOrder = async () => {
       }
     }
   } else {
-    alert("此單已審核，不能刪除");
+    alert("此單已審核，不能刪除"); // #BusinessLogic
   }
 };
 
@@ -923,8 +877,8 @@ const toggleAudit = async () => {
   const isAudit = form.audit === null || form.audit === "";
   const params = {
     danno: form.danno,
-    table: "cllldmst",
-    formno: "cllld",
+    table: tableNameMST,
+    formno: formno,
   };
 
   await utils.auditOrder(isAudit, params); // 切換資料庫中的審核狀態
@@ -941,7 +895,7 @@ const {
   isToggleAuditDisabled,
   isExportExcelDisabled,
   checkButtonFlags,
-} = useCheckButtonFlags("cllld", form.audit);
+} = useCheckButtonFlags(formno, form.audit);
 /*
 // 實現凍結表頭和欄位的功能, 並動態計算最小寬度
 // 以後應該可以放到composables裡面?
@@ -1044,7 +998,7 @@ const formRows = computed(() => {
 }); // 上方的欄位
 console.log("formRows:", formRows.value);
 
-// 驗證表格欄位是否已填寫
+// 驗證表格欄位是否已填寫正確
 const fieldRefs = reactive({});
 const setFieldRef = (refName) => (el) => {
   if (el) {
@@ -1053,21 +1007,55 @@ const setFieldRef = (refName) => (el) => {
 };
 const {
   isFieldValid,
+  getInvalidGroupNames,
   isRowFieldsValid,
-  isAnyFieldInvalid,
+  isAnyFieldValid,
   handleFocus,
   handleBlur,
   isFieldDisabled,
   focusNextInvalidField,
   isFocusMechanismActive,
-  isFormError,
+  isShowFormError ,
   isFormComplete,
 } = useFieldValidate(results, form, formRows.value, fieldRefs, labels.value);
 
+const {
+  numberColumnsConfig,
+  textColumnsConfig,
+  dateColumnsConfig,
+} = useTableColumnConfig(mode, labels, isFieldValid, getInvalidGroupNames, handleFocus, handleBlur, isFieldDisabled, isFocusMechanismActive, updateTable, setFieldRef);
+
+// 表格中需要特殊處理的欄位
+const specialTableColumns = {
+  'header.clllditm.gcdno': {
+    getProps: (item, key) => ({
+      readonly: true,
+      'append-inner-icon': mode.value !== 'view' ? 'mdi-dots-horizontal-circle' : null,
+      class: labels.value[key]?.dataType === 'number' ? 'number-field' : '',
+    }),
+    getEvents: (item, key) => ({
+      'click:append-inner': () => form.kind === '包材領料' ? null : openScgcdDialog(),
+    }),
+  },
+  'header.clllditm.spno': {
+    getProps: (item, key) => ({
+      readonly: true,
+      'append-inner-icon': mode.value !== 'view' ? 'mdi-dots-horizontal-circle' : null,
+      class: labels.value[key]?.dataType === 'number' ? 'number-field' : '',
+    }),
+    getEvents: (item, key) => ({
+      'click:append-inner': () => item['header.clllditm.gcdno'] === '' ? openSpDialog(item) : openScgcdDialog(item['header.clllditm.gcdno']),
+    }),
+  },
+  'header.clllditm.sqpcs': numberColumnsConfig(),
+  'header.clllditm.pcs': numberColumnsConfig(),
+  'header.clllditm.pcsnx': numberColumnsConfig(),
+  'header.clllditm.cbprice': numberColumnsConfig(),
+  'header.clllditm.note': textColumnsConfig(),
+};
+
 // --- Lifecycle Hooks ---
 onMounted(async () => {
-  // 原本的created, 應該可以拿出來直接執行?
-
   await setMode("view");
 
   utils.handleUrlParams(setMode); // 處理URL中的參數，並自動切換到對應的模式
