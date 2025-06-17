@@ -724,7 +724,7 @@ const updateTable = async (item, key) => {
   // 檢查數量是否符合限制 #BusinessLogic
   if (key === "header.clllditm.pcs" || key === "header.clllditm.pcsnx") {
     // 處理實發數欄位的變更
-    if (form.kind == '生產領料' || form.kind == '外發領料') {
+    if (form.kind === '生產領料' || form.kind === '外發領料') {
       // 外發領料目前沒有在使用了
 
       // 限制能領的上限 #BusinessLogic
