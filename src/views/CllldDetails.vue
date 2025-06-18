@@ -16,7 +16,14 @@
     />
     <ButtonsSaveDiscard
       :save="save"
-      :isSaveDisabled="!isFormComplete || !isAnyFieldValid"
+      :isSaveDisabled="!isFormComplete || !isAllFieldValid || results.length === 0"
+      :saveTooltipString="!isFormComplete
+        ? '請先選擇類別'
+        : !isAllFieldValid
+          ? '請先完成表格中未填寫的必填欄位'
+          : results.length === 0
+            ? '請先加入資料' : ''
+      "
       :discard="() => setMode('view')"
       :isButtonsSaveDiscardVisible="mode !== 'view'"
     />
@@ -234,18 +241,23 @@
       <template v-if="mode !== 'view'">
         <div class="container">
           <v-tooltip
-            v-if="!isFormComplete"
+            v-if="!isFormComplete || !isAllFieldValid"
             location="top"
             activator="parent"
             open-on-hover
           >
-            請選擇類別!
+            <template v-if="!isFormComplete">
+              請先選擇類別
+            </template>
+            <template v-else-if="!isAllFieldValid">
+              請先完成表格中未填寫的必填欄位
+            </template>
           </v-tooltip>
           <v-btn
             class="plus-button"
             color="primary"
             @click="form.kind === '包材領料' ? openSpDialog() : openScgcdDialog()"
-            :disabled="!isFormComplete || !isAnyFieldValid"
+            :disabled="!isFormComplete || !isAllFieldValid"
             >+</v-btn
           >
         </div>
@@ -591,6 +603,7 @@ const initializeData = async () => {
     isDeleteOrderDisabled.value = true;
     isToggleAuditDisabled.value = true;
     isExportExcelDisabled.value = true;
+    isPrintOrderDisabled.value = true;
 
     reset(); // 重設所有欄位
     return; // 如果沒有資料，則不進行後續操作
@@ -620,12 +633,6 @@ const save = async () => {
 
   if (mode.value === "add") {
     // 保存form和table的資料到資料庫
-
-    // 檢查results是否為空
-    if (results.value.length === 0) {
-      alert("請先添加訂單資料");
-      return;
-    }
 
     const itm = results.value.map((item) => ({
       id: item["header.clllditm.id"],
@@ -894,6 +901,7 @@ const {
   isDeleteOrderDisabled,
   isToggleAuditDisabled,
   isExportExcelDisabled,
+  isPrintOrderDisabled,
   checkButtonFlags,
 } = useCheckButtonFlags(formno, form.audit);
 /*
@@ -1009,7 +1017,7 @@ const {
   isFieldValid,
   getInvalidGroupNames,
   isRowFieldsValid,
-  isAnyFieldValid,
+  isAllFieldValid,
   handleFocus,
   handleBlur,
   isFieldDisabled,

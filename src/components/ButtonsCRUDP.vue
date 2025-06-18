@@ -62,6 +62,16 @@
             >{{labels['button.NA.exportExcel'].name}}</v-btn
           >
         </v-col>
+        <!-- 打印 -->
+        <v-col cols="auto" class="text-right">
+          <v-btn
+            color="primary"
+            @click="printOrder"
+            height="56px"
+            :disabled="isPrintOrderDisabled"
+            >{{labels['button.NA.printOrder'].name}}</v-btn
+          >
+        </v-col>
       </v-row>
     </div>
   </v-card>
@@ -99,6 +109,10 @@ const props = defineProps({
     type: Function,
     required: false,
   },
+  printOrder: {
+    type: Function,
+    required: false,
+  },
 
   // 是否禁用"查詢"按鈕
   isQueryDisabled: {
@@ -127,6 +141,11 @@ const props = defineProps({
   },
   // 是否禁用"導出"按鈕
   isExportExcelDisabled: {
+    type: Boolean,
+    default: true,
+  },
+  // 是否禁用"打印"按鈕
+  isPrintOrderDisabled: {
     type: Boolean,
     default: true,
   },

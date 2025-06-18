@@ -4,6 +4,12 @@
       <v-row>
         <!-- 存檔 -->
         <v-col cols="auto" class="text-right">
+          <v-tooltip
+            v-if="saveTooltipString !== ''"
+            location="top"
+            activator="parent"
+            open-on-hover
+          >{{ saveTooltipString }}</v-tooltip>
           <v-btn
             color="primary"
             @click="save"
@@ -51,6 +57,10 @@ const props = defineProps({
   isButtonsSaveDiscardVisible: {
     type: Boolean,
     default: true,
+  },
+  saveTooltipString: {
+    type: String,
+    default: "",
   },
 });
 

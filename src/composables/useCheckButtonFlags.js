@@ -7,6 +7,7 @@ export function useCheckButtonFlags(formno, audit) {
   const isDeleteOrderDisabled = ref(true);
   const isToggleAuditDisabled = ref(true);
   const isExportExcelDisabled = ref(true);
+  const isPrintOrderDisabled = ref(true);
 
   async function checkButtonFlags() {
     // 檢查按鈕是否禁用
@@ -20,6 +21,7 @@ export function useCheckButtonFlags(formno, audit) {
     }
     isExportExcelDisabled.value = !utils.checkFlag("excelflag", formno);
   }
+  isPrintOrderDisabled.value = !utils.checkFlag("printflag", formno);
 
   return {
     isAddDisabled,
@@ -27,6 +29,7 @@ export function useCheckButtonFlags(formno, audit) {
     isDeleteOrderDisabled,
     isToggleAuditDisabled,
     isExportExcelDisabled,
+    isPrintOrderDisabled,
     checkButtonFlags,
   };
 }

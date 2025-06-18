@@ -195,7 +195,7 @@ export function useFieldValidate(results, form, formRows, fieldRefs, labels) {
     }
   }
 
-  const isAnyFieldValid = computed(() => {
+  const isAllFieldValid = computed(() => {
     // 檢查是否所有欄位皆以填寫正確
     return results.value.every((item) => isRowFieldsValid(item));
   });
@@ -387,7 +387,7 @@ export function useFieldValidate(results, form, formRows, fieldRefs, labels) {
     isFieldValid,
     getInvalidGroupNames,
     isRowFieldsValid,
-    isAnyFieldValid,
+    isAllFieldValid,
     handleFocus,
     handleBlur,
     isFieldDisabled,

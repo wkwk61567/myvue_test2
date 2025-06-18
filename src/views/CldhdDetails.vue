@@ -12,11 +12,20 @@
       :isToggleAuditDisabled="isToggleAuditDisabled"
       :exportExcel="() => utils.exportExcel(results.value, headers.value, '材料采購單明細', '材料采購單明細')"
       :isExportExcelDisabled="isExportExcelDisabled"
+      :printOrder="printOrder"
+      :isPrintOrderDisabled="isPrintOrderDisabled || form.audit === null || form.audit === ''"
       :isButtonsCRUDPVisible="mode === 'view'"
     />
     <ButtonsSaveDiscard
       :save="save"
-      :isSaveDisabled="!isFormComplete || !isAnyFieldValid"
+      :isSaveDisabled="!isFormComplete || !isAllFieldValid || results.length === 0"
+      :saveTooltipString="!isFormComplete
+        ? '請先選擇供方編碼'
+        : !isAllFieldValid
+          ? '請先完成表格中未填寫的必填欄位'
+          : results.length === 0
+            ? '請先加入資料' : ''
+      "
       :discard="() => setMode('view')"
       :isButtonsSaveDiscardVisible="mode !== 'view'"
     />
@@ -256,11 +265,24 @@
       <!-- 下方的加號 -->
       <template v-if="mode !== 'view'">
         <div class="container">
+          <v-tooltip
+            v-if="!isFormComplete || !isAllFieldValid"
+            location="top"
+            activator="parent"
+            open-on-hover
+          >
+            <template v-if="!isFormComplete">
+              請先選擇供方編碼
+            </template>
+            <template v-else-if="!isAllFieldValid">
+              請先完成表格中未填寫的必填欄位
+            </template>
+          </v-tooltip>
           <v-btn
             class="plus-button"
             color="primary"
             @click="openSpDialog(null)"
-            :disabled="!isFormComplete || !isAnyFieldValid"
+            :disabled="!isFormComplete || !isAllFieldValid"
           >+</v-btn>
         </div>
       </template>
@@ -760,6 +782,7 @@ const initializeData = async () => {
     isDeleteOrderDisabled.value = true;
     isToggleAuditDisabled.value = true;
     isExportExcelDisabled.value = true;
+    isPrintOrderDisabled.value = true;
 
     reset(); // 重設所有欄位
     return; // 如果沒有資料，則不進行後續操作
@@ -802,12 +825,6 @@ const save = async () => {
 
   if (mode.value === "add") {
     // 保存form和table的資料到資料庫
-
-    // 檢查results是否為空
-    if (results.value.length === 0) {
-      alert("請先添加訂單資料");
-      return;
-    }
     
     const itm = results.value.map((item) => ({
       id: item["NA.cldhditm.id"],
@@ -1046,6 +1063,7 @@ const {
   isDeleteOrderDisabled,
   isToggleAuditDisabled,
   isExportExcelDisabled,
+  isPrintOrderDisabled,
   checkButtonFlags,
 } = useCheckButtonFlags(formno, form.audit);
 
@@ -1168,7 +1186,7 @@ const {
   isFieldValid,
   getInvalidGroupNames,
   isRowFieldsValid,
-  isAnyFieldValid,
+  isAllFieldValid,
   handleFocus,
   handleBlur,
   isFieldDisabled,
@@ -1214,6 +1232,215 @@ const specialTableColumns = {
   },
   "header.cldhditm.gdate": dateColumnsConfig(),
   "header.cldhditm.note": textColumnsConfig(),
+};
+
+const printOrder = () => {
+  // 列印
+
+  const company = {
+    name: "東莞萬成模具五金制品有限公司",
+    tel: "TEL: (0769)88731998 88462999",
+    fax: "FAX: (0769)88732330",
+    address: "地址: 東莞市高步鎮洗沙管理區",
+  };
+
+  // Using data from form and hardcoded values from image for missing fields
+  const supplier = {
+    name: form.supplyname,
+    address: "深圳市寶安區松崗街道華美路1號", // Hardcoded from image
+    tel: "6643/6642/6673 0755-297", // Hardcoded from image
+    fax: "0755-29712058/0757-", // Hardcoded from image
+    contact: "戚小姐/金玉慧/朱經", // Hardcoded from image
+  };
+
+  const order = {
+    id: form.danno,
+    date: form.ddate,
+    currency:
+      results.value.length > 0
+        ? results.value[0]["header.cldhditm.payno"]
+        : "RMB",
+  };
+
+  const itemsHtml = results.value
+    .map(
+      (item, index) => `
+    <tr>
+      <td style="text-align: center;">${index + 1}</td>
+      <td>${item["header.cldhditm.spno"] || ""}</td>
+      <td>${item["header.sp.spspec"] || ""}</td>
+      <td style="text-align: center;">${item["header.sp.spunit"] || ""}</td>
+      <td style="text-align: right;">${item["header.cldhditm.pcs"] || ""}</td>
+      <td style="text-align: right;">${item["header.cldhditm.kg"] || ""}</td>
+      <td style="text-align: right;">${item["header.cldhditm.price"] || ""}</td>
+      <td style="text-align: right;">${item["header.cldhditm.pay"] || ""}</td>
+      <td style="text-align: center;">${
+        item["header.cldhditm.gdate"] || ""
+      }</td>
+      <td>${item["header.cldhditm.note"] || ""}</td>
+    </tr>
+  `
+    )
+    .join("");
+
+  // Add empty rows to fill the page if items are few
+  const minRows = 6; // Adjust as needed
+  let emptyRowsHtml = "";
+  if (results.value.length < minRows) {
+    for (let i = 0; i < minRows - results.value.length; i++) {
+      emptyRowsHtml +=
+        "<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>";
+    }
+  }
+
+  const totalAmount = utils.calculateColumnSum(
+    results.value,
+    "header.cldhditm.pay"
+  );
+  const formattedTotal =
+    typeof totalAmount === "number" ? totalAmount.toFixed(2) : "";
+
+  const htmlContent = `
+    <html>
+      <head>
+        <title>內銷訂購單 - ${order.id}</title>
+        <style>
+          @page { size: landscape; width: 800px; height: 500px;}
+          body { font-family: 'PMingLiU'}
+          table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+          /* 只保留表頭和tfoot有線條 */
+          .main-table, .main-table th {
+            border: 1px solid black;
+          }
+          .main-table td, .main-table tbody td, .main-table tfoot td {
+            border: none;
+          }
+            /* 只有第一欄有框線 */
+          .main-table td:first-child, .main-table th:first-child {
+            border-left: 1px solid black;
+            border-right: 1px solid black;
+          }
+          .main-table th, .main-table td { padding: 3px; border-left: none; border-right: none;}
+          .header { font-family: '宋体', 'SimSun', sans-serif; text-align: center; }
+          .header h1 { font-size: 18pt; margin: 0; }
+          .header p { margin: 0; font-size: 10pt; }
+          .title { text-align: center; font-size: 16pt; font-weight: bold; padding: 5px 0; }
+          .info-table td { border: 1px solid black; padding: 3px; vertical-align: middle; }
+          .items-table th { text-align: center; }
+          .items-table td { vertical-align: top; height: 22px; } /* Set fixed height for rows */
+          .footer-table td { border: 1px solid black; padding-top: 20px; padding-bottom: 20px; }
+          .notes { font-size: 10pt; }
+          .bottom-bar { bottom: 1cm; left: 1cm; right: 1cm; display: flex; justify-content: space-between; font-size: 10pt; }
+          .text-right { text-align: right; }
+          .text-center { text-align: center; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>${company.name}</h1>
+          <p>${company.tel} &nbsp;&nbsp; ${company.fax}</p>
+          <p>${company.address}</p>
+        </div>
+        
+        <table style="width: 100%;">
+          <tr>
+            <td style="width: 40%;"><b>訂單號碼：</b>${order.id}</td>
+            <td style="width: 20%; font-size: 16pt;"><div class="title">內 銷 訂 購 單</div></td>
+            <td style="width: 40%;" class="text-right"><b>訂購日期：</b>${
+              order.date
+            }</td>
+          </tr>
+        </table>
+
+        <table class="info-table">
+          <tr>
+            <td style="width: 10%;"><b>廠商名稱</b></td>
+            <td style="width: 35%;">${supplier.name}</td>
+            <td style="width: 10%;"><b>聯絡人</b></td>
+            <td style="width: 20%;">${supplier.contact}</td>
+            <td style="width: 10%;"><b>傳真</b></td>
+            <td style="width: 15%;">${supplier.fax}</td>
+          </tr>
+          <tr>
+            <td><b>廠商地址</b></td>
+            <td>${supplier.address}</td>
+            <td><b>電話</b></td>
+            <td>${supplier.tel}</td>
+            <td><b>幣別</b></td>
+            <td>${order.currency}</td>
+          </tr>
+        </table>
+
+        <table class="main-table items-table">
+          <thead>
+            <tr>
+              <th style="width: 4%; white-space: nowrap;">項目</th>
+              <th style="width: 15%;">編碼</th>
+              <th style="width: 24%;">規格</th>
+              <th style="width: 5%;">單位</th>
+              <th style="width: 7%;">數量</th>
+              <th style="width: 8%;">重量</th>
+              <th style="width: 8%;">單價</th>
+              <th style="width: 9%;">金額</th>
+              <th style="width: 10%;">交貨日期</th>
+              <th style="width: 10%;">用途</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsHtml}
+            ${emptyRowsHtml}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td style="width: 4%;" class="text-right"></td>
+              <td colspan="5"></td>
+              <td class="text-right" style="white-space: nowrap;">合計：${formattedTotal}</td>
+              <td colspan="7"></td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <table class="footer-table" style="width: 100%;">
+          <tr>
+            <td style="width: 5%; white-space: nowrap;">核准</td>
+            <td style="width: 20%;"></td>
+            <td style="width: 5%; white-space: nowrap;">審核</td>
+            <td style="width: 20%;"></td>
+            <td style="width: 5%; white-space: nowrap;">主管</td>
+            <td style="width: 20%;"></td>
+            <td style="width: 5%; white-space: nowrap;">采購</td>
+            <td style="width: 20%;"></td>
+          </tr>
+        </table>
+
+        <div class="notes">
+          <b>說明：</b>
+          <ol style="margin: 0; padding-left: 40px;">
+            <li>付款條件：月結 90 天。</li>
+            <li>訂單請于隔天簽回，否則視同默認. 造成一切後果由貴司承擔.</li>
+            <li>此材料為HSF材料</li>
+          </ol>
+        </div>
+
+        <div class="bottom-bar">
+          <span>Q-4-10-03-A01</span>
+          <span>第 1 頁 / 共 1 頁</span>
+          <span>廠商回復__________________</span>
+        </div>
+      </body>
+    </html>
+  `;
+
+  const printWindow = window.open("", "_blank");
+  printWindow.document.write(htmlContent);
+  //return;
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(() => {
+    printWindow.print();
+    printWindow.close();
+  }, 250);
+  
 };
 
 // --- Lifecycle Hooks ---

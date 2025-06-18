@@ -198,6 +198,7 @@ const {
   isDeleteOrderDisabled,
   isToggleAuditDisabled,
   isExportExcelDisabled,
+  isPrintOrderDisabled,
   checkButtonFlags,
 } = useCheckButtonFlags(formno, form.audit);
 
