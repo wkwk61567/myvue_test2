@@ -58,91 +58,6 @@ export function handleField(item, field) {
   item[field] = numericValue; // 更新數值
 }
 
-export function setCljhditmNumbers(item, limitPercentage) {
-  // 用內部的邏輯計算並且重設暫收數量, 暫收重量, 理論單重, 單重差, 金額
-  // #BusinessLogic
-
-  /*
-  能再多收幾%定義在xtsetup table下：
-  板料（spkindno=3, clkind <> ‘卷料’）：cljhd_blccb
-  卷料（spkindno=3, clkind =‘卷料’）：cljhd_jlccb
-  輔料（spkindno=[1, 2, 4, 5]）：cljhd_flccb
-  */
-  console.log("能再多收的百分比:", limitPercentage);
-  let itemLimitPercentage = 0;
-  if (item.spkindno === "3" && item.clkind === "卷料") {
-    itemLimitPercentage = parseFloat(limitPercentage["cljhd_blccb"]);
-  } else if (item.spkindno === "3" && item.clkind !== "卷料") {
-    itemLimitPercentage = parseFloat(limitPercentage["cljhd_jlccb"]);
-  } else if (
-    item.spkindno === "1" ||
-    item.spkindno === "2" ||
-    item.spkindno === "4" ||
-    item.spkindno === "5"
-  ) {
-    itemLimitPercentage = parseFloat(limitPercentage["cljhd_flccb"]);
-  } else {
-    alert("錯誤! 不支援的供方類別或材料類別");
-    return;
-  }
-
-  const limitRatio = (100 + itemLimitPercentage) / 100; // 能夠多收的倍數
-
-  // 判斷還能收多少
-  const maxjhpcs = parseFloat(
-    (
-      parseFloat(item["header.cljhditm.dhdpcs"]) * limitRatio -
-      parseFloat(item["header.cljhditm.getpcs"])
-    ).toFixed(4)
-  );
-  if (parseFloat(item["header.cljhditm.jhpcs"]) > maxjhpcs) {
-    item["header.cljhditm.jhpcs"] = 0; // 如果超過最大值，則設為0
-    alert(`僅可再收${maxjhpcs}(只可多收${itemLimitPercentage}%)`);
-    console.log("僅可再收", maxjhpcs);
-  }
-
-  // 如果!(spkindno===3 && (clkind === '板料' || clkind === '鋁擠型')), jhkg設為jhpcs*dz
-  if (
-    !(
-      item.spkindno === "3" &&
-      (item.clkind === "板料" || item.clkind === "鋁擠型")
-    )
-  ) {
-    item["header.cljhditm.jhkg"] = parseFloat(
-      (item["header.cljhditm.jhpcs"] * item["header.cljhditm.dz"]).toFixed(4)
-    ).toString();
-  }
-
-  // 計算單重
-  item["header.cljhditm.jhdz"] = parseFloat(
-    (item["header.cljhditm.jhkg"] / item["header.cljhditm.jhpcs"]).toFixed(6)
-  );
-
-  // 計算單重差
-  if (item["header.cljhditm.dz"] === 0) {
-    // 避免除以0
-    item["header.cljhditm.dzrate"] = 0;
-  } else {
-    item["header.cljhditm.dzrate"] = parseFloat(
-      (
-        (item["header.cljhditm.jhdz"] / item["header.cljhditm.dz"] - 1) *
-        100
-      ).toFixed(2)
-    );
-  }
-  // 只有原材料是以kg為單位計價
-  //console.log("spkindname", spkindname);
-  if (item.spkindno === "3") {
-    item["header.cljhditm.pay"] = parseFloat(
-      (item["header.cljhditm.jhkg"] * item["header.cljhditm.price"]).toFixed(2)
-    ); // 計算金額
-  } else {
-    item["header.cljhditm.pay"] = parseFloat(
-      (item["header.cljhditm.jhpcs"] * item["header.cljhditm.price"]).toFixed(2)
-    ); // 計算金額
-  }
-}
-
 export async function fetchCategories() {
   // 獲取收貨類別
   try {
@@ -213,35 +128,6 @@ export function filterSuppliers(suppliers, supplyQuery, tempSupplykind) {
   return filteredSuppliers; // 回傳過濾後的供方列表
 }
 
-export async function cljhdDelete(cljhdDanno, id) {
-  // 根據id刪除cljhditm的資料 如果已經沒有了則刪除cljhdmst的整張收貨單
-
-  const params = {
-    danno: cljhdDanno,
-    id: id,
-  };
-  console.log("傳送:", params);
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/cljhdDelete.php`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include", // 憑證
-      body: JSON.stringify(params),
-    });
-    const data = await response.json();
-    if (data.error) {
-      console.error("刪除失敗:", data.error);
-      alert(`刪除失敗: ${data.error}`);
-    } else {
-      console.log("伺服器回傳內容:", data);
-      console.log("刪除完成");
-    }
-  } catch (error) {
-    console.error("刪除資料失敗", error);
-    console.log("刪除失敗");
-  }
-}
-
 export async function checkFlag(requiredFlag, requiredFormno) {
   // 應該改叫isFlagTrue
   // 檢查權限
@@ -264,6 +150,10 @@ export async function checkFlag(requiredFlag, requiredFormno) {
     console.error("error", error);
     return false;
   }
+}
+
+export function getApiUrl(apiFileName) {
+  return `${API_BASE_URL}/api/${apiFileName}`;
 }
 
 export async function fetchData(apiFileName, params) {
@@ -315,7 +205,7 @@ export function isReadonly(mode, inputType, isEditable, componentType) {
   );
 }
 
-export const formatDateTimeFields = (results, labels) => {
+export function formatDateTimeFields (results, labels) {
   // 轉換日期和時間欄位
   results.forEach((item) => {
     // 根據dataType來決定如何處理時間格式
@@ -331,7 +221,7 @@ export const formatDateTimeFields = (results, labels) => {
   });
 };
 
-export const exportExcel = (data, headers, name = "export") => {
+export function exportExcel (data, headers, name = "export") {
   // 將資料轉換為適合導出的格式
   const dataToExport = data.map((row) => {
     let newRow = {};
@@ -389,3 +279,246 @@ export function selectCellText(event) {
   const selection = window.getSelection();
   selection.addRange(range);
 }
+
+
+export async function printCldhdOrder (danno) {
+  // 列印
+
+  const data = await fetchData("cldhdDetails.php", {danno: danno});
+  const supplyno = data["form"][0]["supplyno"];
+  const ddate = data["form"][0]["ddate"].date.split(" ")[0];
+
+  const xtsetupData = await fetchData("xtsetup.php", {});
+  const company = {
+    compname: xtsetupData[0]["compname"], // 東莞萬成模具五金制品有限公司
+    compphone: xtsetupData[0]["compphone"], // TEL
+    compaddress: xtsetupData[0]["compaddress"], // 地址
+  };
+
+  const supplyData = await fetchData("supply.php", { supplyno: supplyno });
+  const supplier = {
+    supplyname: supplyData[0]["supplyname"],
+    address: supplyData[0]["address"],
+    phone: supplyData[0]["phone"],
+    fax: supplyData[0]["fax"],
+    contact: supplyData[0]["contact"],
+    payno: supplyData[0]["payno"],
+    payday: supplyData[0]["payday"],
+  };
+
+  const maxRowsPerPage = 7; // 每頁最大行數
+  const totalItems = data["table"].length;
+  const totalPages = totalItems === 0 ? 1 : Math.ceil(totalItems / maxRowsPerPage);
+  let pagesContent = "";
+
+  for (let page = 1; page <= totalPages; page++) {
+    const startIndex = (page - 1) * maxRowsPerPage;
+    const endIndex = startIndex + maxRowsPerPage;
+    const pageItems = data["table"].slice(startIndex, endIndex);
+
+    const itemsHtml = pageItems
+      .map(
+        (item, index) => `
+      <tr>
+        <td style="text-align: center;">${startIndex + index + 1}</td>
+        <td>${item["header.cldhditm.spno"] || ""}</td>
+        <td>${item["header.sp.spspec"] || ""}</td>
+        <td style="text-align: center;">${item["header.sp.spunit"] || ""}</td>
+        <td style="text-align: right;">${item["header.cldhditm.pcs"] || ""}</td>
+        <td style="text-align: right;">${item["header.cldhditm.kg"] || ""}</td>
+        <td style="text-align: right;">${item["header.cldhditm.price"] || ""}</td>
+        <td style="text-align: right;">${item["header.cldhditm.pay"] || ""}</td>
+        <td style="text-align: center;">${
+          item["header.cldhditm.gdate"].date.split(" ")[0] || ""
+        }</td>
+        <td>${item["header.cldhditm.note"] || ""}</td>
+      </tr>
+    `
+      )
+      .join("");
+
+    let emptyRowsHtml = "";
+    const rowsOnThisPage = pageItems.length;
+    
+    // 用空白行填滿
+    for (let i = 0; i < maxRowsPerPage - rowsOnThisPage; i++) {
+      emptyRowsHtml +=
+        "<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>";
+    }
+
+    // 每頁都計算從第一筆到本頁最後一筆的合計
+    const pageSum = data["table"]
+      .slice(0, endIndex)
+      .reduce((total, item) => total + (parseFloat(item["header.cldhditm.pay"]) || 0), 0);
+    const formattedPageSum = parseFloat(pageSum.toFixed(2));
+
+    const tfootHtml = `
+      <tfoot>
+        <tr>
+          <td style="width: 4%;" class="text-right"></td>
+          <td colspan="4"></td>
+          <td class="text-right" style="white-space: nowrap;">合計：</td>
+          <td class="text-right" style="white-space: nowrap;">${formattedPageSum}</td>
+          <td colspan="7"></td>
+        </tr>
+      </tfoot>
+    `;
+
+    pagesContent += `
+      <div class="page-container">
+        <div class="header-content">
+          <div class="header">
+            <h1>${company.compname}</h1>
+            <p>${company.compphone}</p>
+            <p>${company.compaddress}</p>
+          </div>
+          
+          <table style="width: 100%;">
+            <tr>
+              <td style="width: 40%;"><b>訂單號碼：</b>${danno}</td>
+              <td style="width: 20%; font-size: 16pt;"><div class="title">內 銷 訂 購 單</div></td>
+              <td style="width: 40%;" class="text-right"><b>訂購日期：</b>${
+                ddate
+              }</td>
+            </tr>
+          </table>
+
+          <table class="info-table">
+            <tr>
+              <td style="width: 10%;"><b>廠商名稱</b></td>
+              <td style="width: 25%;">${supplier.supplyname}</td>
+              <td style="width: 10%;"><b>聯絡人</b></td>
+              <td style="width: 20%;">${supplier.contact}</td>
+              <td style="width: 10%;"><b>傳真</b></td>
+              <td style="width: 25%;">${supplier.fax}</td>
+            </tr>
+            <tr>
+              <td><b>廠商地址</b></td>
+              <td>${supplier.address}</td>
+              <td><b>電話</b></td>
+              <td>${supplier.phone}</td>
+              <td><b>幣別</b></td>
+              <td>${supplier.payno}</td>
+            </tr>
+          </table>
+        </div>
+
+        <table class="main-table items-table">
+          <thead>
+            <tr>
+              <th style="width: 4%; white-space: nowrap;">項目</th>
+              <th style="width: 15%;">編碼</th>
+              <th style="width: 31%;">規格</th>
+              <th style="width: 6%;">單位</th>
+              <th style="width: 6%;">數量</th>
+              <th style="width: 6%;">重量</th>
+              <th style="width: 6%;">單價</th>
+              <th style="width: 6%;">金額</th>
+              <th style="width: 10%;">交貨日期</th>
+              <th style="width: 10%;">用途</th>
+            </tr>
+          </thead>
+          <tbody style="font-size: 8pt;">
+            ${itemsHtml}
+            ${emptyRowsHtml}
+          </tbody>
+          ${tfootHtml}
+        </table>
+
+        <div class="footer-content">
+          <table class="footer-table" style="width: 100%;">
+            <tr>
+              <td style="width: 5%; white-space: nowrap;">核准</td>
+              <td style="width: 20%;"></td>
+              <td style="width: 5%; white-space: nowrap;">審核</td>
+              <td style="width: 20%;"></td>
+              <td style="width: 5%; white-space: nowrap;">主管</td>
+              <td style="width: 20%;"></td>
+              <td style="width: 5%; white-space: nowrap;">采購</td>
+              <td style="width: 20%;"></td>
+            </tr>
+          </table>
+
+          <div class="notes">
+            <b>說明：</b>
+            <ol style="margin: 0; padding-left: 40px;">
+              <li>付款條件：月結 ${supplier.payday} 天。</li>
+              <li>訂單請于隔天簽回，否則視同默認. 造成一切後果由貴司承擔.</li>
+              <li>此材料為HSF材料</li>
+            </ol>
+          </div>
+
+          <div class="bottom-bar">
+            <span>Q-4-10-03-A01</span>
+            <span>第 ${page} 頁 / 共 ${totalPages} 頁</span>
+            <span>廠商回復__________________</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  const htmlContent = `
+    <html>
+      <head>
+        <title>內銷訂購單 - ${danno}</title>
+        <style>
+          @media print {
+            body { -webkit-print-color-adjust: exact; }
+          }
+          body { font-family: 'PMingLiU'; margin: 0; }
+          .page-container {
+            flex-direction: column;
+            justify-content: space-between;
+            height: 100%;
+            page-break-after: always;
+          }
+          .page-container:last-child {
+            page-break-after: auto;
+          }
+          .header-content, .footer-content {
+            flex-shrink: 0;
+          }
+          table { width: 100%; border-collapse: collapse; font-size: 9pt; }
+          .main-table, .main-table th {
+            border: 1px solid black;
+          }
+          .main-table td, .main-table tbody td, .main-table tfoot td {
+            border: none;
+          }
+          .main-table td:first-child, .main-table th:first-child {
+            border-left: 1px solid black;
+            border-right: 1px solid black;
+          }
+          .main-table th, .main-table td { padding: 0px; padding-left: 5px; border-left: none; border-right: none;}
+          .header { font-family: '宋体', 'SimSun', sans-serif; text-align: center; }
+          .header h1 { font-size: 16pt; margin: 0; }
+          .header p { margin: 0; font-size: 9pt; }
+          .title { text-align: center; font-size: 16pt; font-weight: bold; padding: 5px 0; }
+          .info-table td { border: 1px solid black; padding: 3px; vertical-align: middle; }
+          .items-table th { text-align: center; }
+          .items-table td { vertical-align: top; height: 22px; } /* Set fixed height for rows */
+          .footer-table td { border: 1px solid black; padding-top: 10px; padding-bottom: 10px; }
+          .notes { font-size: 9pt; }
+          .bottom-bar { display: flex; justify-content: space-between; font-size: 9pt; }
+          .text-right { text-align: right; }
+          .text-center { text-align: center; }
+        </style>
+      </head>
+      <body>
+        ${pagesContent}
+      </body>
+    </html>
+  `;
+
+  const printWindow = window.open("", "_blank");
+  printWindow.document.write(htmlContent);
+  //return;
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(() => {
+    printWindow.print();
+    printWindow.close();
+  }, 250);
+  
+};

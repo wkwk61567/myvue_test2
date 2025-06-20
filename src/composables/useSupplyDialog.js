@@ -15,7 +15,7 @@ export function useSupplyDialog() {
     tempSupplykind.value = ""; // 清空查詢條件
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/suppliers.php`, {
+      const response = await fetch(`${API_BASE_URL}/api/supply.php`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include", // 憑證

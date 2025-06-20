@@ -24,7 +24,7 @@
           : results.length === 0
             ? '請先加入資料' : ''
       "
-      :discard="() => setMode('view')"
+      :discard="discard"
       :isButtonsSaveDiscardVisible="mode !== 'view'"
     />
     <!-- form區塊 -->
@@ -59,7 +59,7 @@
                   :style="{ backgroundColor: INPUT_COLORS[field.inputType] }"
                   :append-inner-icon="field.icon"
                   @click:append-inner="field.onClick"
-                  :error="isShowFormError (mode, field, form[field.column])"
+                  :error="isErrorVisible (mode, field, form[field.column])"
                 />
               </template>
               <template v-else>
@@ -80,7 +80,7 @@
                       : field.componentType === 'date'
                         ? { type: 'date' }
                         : {}"
-                  :error="isShowFormError (mode, field, form[field.column])"
+                  :error="isErrorVisible (mode, field, form[field.column])"
                   @change="updateForm(field)"
                   @update:modelValue="field.componentType === 'select' ? updateForm(field) : null"
                 />
@@ -251,7 +251,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, inject } from "vue";
+import { ref, reactive, computed, onMounted, onBeforeUnmount, inject } from "vue";
 import { useRouter } from "vue-router";
 import { INPUT_COLORS, HOVER_COLOR } from "@/config.js";
 import * as utils from "@/utils/utils.js";
@@ -487,6 +487,11 @@ const save = async () => {
       itm: itm,
     };
     const data = await utils.fetchData("cljhdDetailsAdd.php", params); // 透過api新增資料
+    if (data.error) {
+      console.error("新增失敗:", data.error);
+      alert("新增失敗: " + data.error);
+      return;
+    }
     console.log("新增資料結果：", data);
     alert("存檔完成");
     const url = {
@@ -512,11 +517,51 @@ const save = async () => {
       itm: itm,
     };
     const data = await utils.fetchData("cljhditmUpdateNewRow.php", params); // 透過api更新資料
+    if (data.error) {
+      console.error("更新失敗:", data.error);
+      alert("更新失敗: " + data.error);
+    }
     console.log("更新資料結果：", data);
     alert("存檔完成");
+    
   }
 
   await setMode("view"); // 切換到查看模式
+};
+
+const discard = async () => {
+  // 放棄
+  
+  let confirmMessage = "";
+  const isHasUnsavedRows = results.value.some(item => item["header.cljhditm.id"] > idLastInDB.value); // 是否有未儲存的行
+  const isNoRowsInDB  = orderInDBNum.value === 0; // 是否沒有行在資料庫中
+
+  if (mode.value === "add") {
+    if (isHasUnsavedRows) {
+      confirmMessage = "有未保存的行，您確定要放棄嗎?";
+    }
+  } else if (mode.value === "edit") {
+    if (isHasUnsavedRows && isNoRowsInDB) {
+      confirmMessage = "有未保存的行，放棄將會導致整張單據刪除，您確定要放棄嗎?";
+    } else if (isHasUnsavedRows) {
+      confirmMessage = "有未保存的行，您確定要放棄嗎?";
+    } else if (isNoRowsInDB) {
+      confirmMessage = "放棄將導致整張單據刪除，您確定要放棄嗎?";
+    }
+  }
+
+  if (confirmMessage && !confirm(confirmMessage)) return; // 如果使用者按取消, 不進行放棄
+
+  if (isNoRowsInDB) {
+    const params = {
+        danno: form.danno,
+        target: 'mst',
+      };
+      const data = await utils.fetchData("cljhdDelete.php", params); // 透過api刪除資料
+      console.log("刪除資料結果：", data);
+  }
+  
+  setMode("view"); // 切換到查看模式
 };
 
 const updateForm = async (field) => {
@@ -557,7 +602,6 @@ const updateTable = async (item, key) => {
 
   // 更新欄位 #BusinessLogic
   if (key === "header.cljhditm.jhpcs" || key === "header.cljhditm.jhkg") {
-    //utils.setCljhditmNumbers(item, limitPercentage.value);
     // 用內部的邏輯計算並且重設暫收數量, 暫收重量, 理論單重, 單重差, 金額
 
     /*
@@ -663,8 +707,13 @@ const updateTable = async (item, key) => {
         value: item[key],
       };
       const data = await utils.fetchData("cljhditmUpdate.php", params); // 透過api更新資料
+      if (data.error) {
+        alert("更新失敗: " + data.error);
+        return;
+      }
       console.log("更新結果:", data);
       alert("更新完成");
+      
     }
   }
 };
@@ -699,7 +748,13 @@ const deleteOrder = async () => {
     if (confirm("您確定要刪除整張單據嗎?")) {
       try {
         for (let item of results.value) {
-          await utils.cljhdDelete(form.danno, item["header.cljhditm.id"]);
+           const params = {
+            danno: form.danno,
+            id: item["header.cljhditm.id"],
+            target: 'all',
+          };
+          const data = await utils.fetchData("cljhdDelete.php", params); // 透過api刪除資料
+          console.log("刪除資料結果：", data);
         }
         alert("刪除完成");
         initializeData(); // 重新加載資料
@@ -791,7 +846,7 @@ const {
   isFieldDisabled,
   focusNextInvalidField,
   isFocusMechanismActive,
-  isShowFormError ,
+  isErrorVisible ,
   isFormComplete,
 } = useFieldValidate(results, form, formRows.value, fieldRefs, labels.value);
 
@@ -830,6 +885,28 @@ const specialTableColumns = {
   },
 };
 
+function handleBeforeUnload(event) {
+  // 在離開頁面前檢查是否有未儲存的變更
+  if (mode.value !== "view") {
+    event.preventDefault(); // 只有在非view模式才彈窗，提示使用者有未儲存的變更
+    event.returnValue = ''; // 為了相容舊版瀏覽器，需要設置 returnValue
+  }
+}
+
+function handlePageHide(event) {
+  // 執行清理操作，刪除沒有itm的mst
+  if (mode.value === 'edit' && orderInDBNum.value === 0) {
+    // 使用 navigator.sendBeacon() 可靠地在頁面卸載時發送請求。
+    // 它以非同步方式發送請求，不會延遲頁面的卸載，確保資料能成功發送。
+    // 注意：sendBeacon 發送的是 POST 請求。
+    // #BusinessLogic
+    const formData = new FormData(); // 內建的類別
+    formData.append('danno', form.danno);
+    formData.append('target', 'mst');
+    navigator.sendBeacon(utils.getApiUrl("cljhdDelete.php"), formData);
+  }
+}
+
 // --- Lifecycle Hooks ---
 onMounted(async () => {
   spkindnoOptions.value = await utils.fetchCategories(); // 取得收貨類別選項
@@ -844,6 +921,14 @@ onMounted(async () => {
   await setMode("view");
 
   utils.handleUrlParams(setMode); // 處理URL中的參數，並自動切換到對應的模式
+
+  window.addEventListener("beforeunload", handleBeforeUnload);
+  window.addEventListener("pagehide", handlePageHide);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("beforeunload", handleBeforeUnload);
+  window.removeEventListener("pagehide", handlePageHide);
 });
 
 </script>

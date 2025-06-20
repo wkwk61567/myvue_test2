@@ -247,10 +247,16 @@ const deleteOrder = async () => {
           danno: selectedRow.value["header.cllldmst.danno"],
           kind: item["header.clllditm.kind"],
           id: item["header.clllditm.id"],
+          target: 'itm',
         };
         const data = await utils.fetchData("cllldDelete.php", params); // 透過api刪除資料
         console.log("刪除資料結果：", data);
       }
+      const data = await utils.fetchData("cldhdDelete.php",  {
+          danno: selectedRow.value["header.cldhdmst.danno"],
+          target: 'mst',
+      }); // 刪除mst
+      console.log("刪除資料結果：", data);
       alert("刪除完成");
     }
   } else {

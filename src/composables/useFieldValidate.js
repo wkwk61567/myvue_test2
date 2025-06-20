@@ -351,7 +351,7 @@ export function useFieldValidate(results, form, formRows, fieldRefs, labels) {
     { deep: true }
   );
 
-  function isShowFormError(mode, field, value) {
+  function isErrorVisible(mode, field, value) {
     // 檢查表單欄位是否要顯示錯誤(view模式下不檢查)
     return (
       mode !== "view" &&
@@ -393,7 +393,7 @@ export function useFieldValidate(results, form, formRows, fieldRefs, labels) {
     isFieldDisabled,
     focusNextInvalidField,
     isFocusMechanismActive,
-    isShowFormError,
+    isErrorVisible,
     isFormComplete,
   };
 }

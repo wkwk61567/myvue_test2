@@ -274,14 +274,22 @@ const deleteOrder = async () => {
       const params = {
         danno: selectedRow.value["header.cljhdmst.danno"],
       };
-      const data = await utils.fetchData("cljhdDetails.php", params); //透過api獲取該筆單據的資料
-      //console.log("明細資料:", data["table"]);
-      for (let item of data["table"]) {
-        await utils.cljhdDelete(
-          selectedRow.value["header.cljhdmst.danno"],
-          item["header.cljhditm.id"]
-        );
+      const itmData = await utils.fetchData("cljhdDetails.php", params); //透過api獲取該筆單據的資料
+      for (let item of itmData["table"]) {
+        const params = {
+            danno: selectedRow.value["header.cljhdmst.danno"],
+            id: item["header.cljhditm.id"],
+            target: 'itm',
+          };
+          const data = await utils.fetchData("cljhdDelete.php", params); // 透過api刪除資料
+          console.log("刪除資料結果：", data);
       }
+      const data = await utils.fetchData("cldhdDelete.php",  {
+          danno: selectedRow.value["header.cldhdmst.danno"],
+          target: 'mst',
+      }); // 刪除mst
+      console.log("刪除資料結果：", data);
+      alert("刪除完成");
     }
   } else {
     alert("此單已審核，不能刪除"); // #BusinessLogic

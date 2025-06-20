@@ -12,7 +12,7 @@
       :isToggleAuditDisabled="isToggleAuditDisabled"
       :exportExcel="() => utils.exportExcel(results.value, headers.value, '材料采購單明細', '材料采購單明細')"
       :isExportExcelDisabled="isExportExcelDisabled"
-      :printOrder="printOrder"
+      :printOrder="() => utils.printCldhdOrder(form.danno)"
       :isPrintOrderDisabled="isPrintOrderDisabled || form.audit === null || form.audit === ''"
       :isButtonsCRUDPVisible="mode === 'view'"
     />
@@ -26,7 +26,7 @@
           : results.length === 0
             ? '請先加入資料' : ''
       "
-      :discard="() => setMode('view')"
+      :discard="discard"
       :isButtonsSaveDiscardVisible="mode !== 'view'"
     />
     <!-- form區塊 -->
@@ -62,7 +62,7 @@
                   :style="{ backgroundColor: INPUT_COLORS[field.inputType] }"
                   :append-inner-icon="field.icon"
                   @click:append-inner="field.onClick"
-                  :error="isShowFormError (mode, field, form[field.column])"
+                  :error="isErrorVisible (mode, field, form[field.column])"
                 />
               </template>
               <template v-else>
@@ -105,7 +105,7 @@
                       ? { type: 'date' }
                       : {}
                   "
-                  :error="isShowFormError (mode, field, form[field.column])"
+                  :error="isErrorVisible (mode, field, form[field.column])"
                   @change="updateForm(field)"
                 />
               </template>
@@ -291,7 +291,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, inject, watch, nextTick } from "vue";
+import { ref, reactive, computed, onMounted, onBeforeUnmount, inject, watch, nextTick } from "vue";
 import { useRouter } from "vue-router";
 import { INPUT_COLORS, HOVER_COLOR } from "@/config.js";
 import * as utils from "@/utils/utils.js";
@@ -507,7 +507,7 @@ const selectSp = async (item) => {
     console.log("替代的行：", selecrRow);
 
     // 如果是編輯模式，立刻詢問使用者是否更新到資料庫，否則取消更新
-    if (mode.value === "edit") {
+    if (mode.value === "edit" && selecrRow["NA.cldhditm.id"] <= idLastInDB.value) {
       if (confirm(`您確定要更新${labels.value["header.cldhditm.spno"].name}為${selecrRow["header.cldhditm.spno"]}嗎?`)) {
         const paramsSpno = {
           danno: form.danno,
@@ -666,7 +666,7 @@ const selectGclprice = async (item) => {
   }
   
   // 如果是編輯模式，立刻詢問使用者是否更新到資料庫，否則取消更新
-  if (mode.value === "edit") {
+  if (mode.value === "edit" && selecrRow["NA.cldhditm.id"] <= idLastInDB.value) {
     if (confirm(`您確定要更新${labels.value[key].name}為${selecrRow[key]}嗎?`)){
       const params = {
         danno: form.danno,
@@ -872,6 +872,41 @@ const save = async () => {
   await setMode("view"); // 切換到查看模式
 };
 
+const discard = async () => {
+  // 放棄
+
+  let confirmMessage = "";
+  const isHasUnsavedRows = results.value.some(item => item["NA.cldhditm.id"] > idLastInDB.value); // 是否有未儲存的行
+  const isNoRowsInDB  = orderInDBNum.value === 0; // 是否沒有行在資料庫中
+
+  if (mode.value === "add") {
+    if (isHasUnsavedRows) {
+      confirmMessage = "有未保存的行，您確定要放棄嗎?";
+    }
+  } else if (mode.value === "edit") {
+    if (isHasUnsavedRows && isNoRowsInDB) {
+      confirmMessage = "有未保存的行，放棄將會導致整張單據刪除，您確定要放棄嗎?";
+    } else if (isHasUnsavedRows) {
+      confirmMessage = "有未保存的行，您確定要放棄嗎?";
+    } else if (isNoRowsInDB) {
+      confirmMessage = "放棄將導致整張單據刪除，您確定要放棄嗎?";
+    }
+  }
+
+  if (confirmMessage && !confirm(confirmMessage)) return; // 如果使用者按取消, 不進行放棄
+
+  if (isNoRowsInDB) {
+    const params = {
+        danno: form.danno,
+        target: 'mst',
+      };
+      const data = await utils.fetchData("cldhdDelete.php", params); // 透過api刪除資料
+      console.log("刪除資料結果：", data);
+  }
+  
+  setMode("view"); // 切換到查看模式
+};
+
 const updateForm = async (field) => {
   // 更新form的欄位
 
@@ -973,11 +1008,12 @@ const deleteRow = async (item) => {
       alert("此項已開始入倉, 不能刪行!");  // #BusinessLogic
       return;
     }
-    const confirmMessage = orderInDBNum.value === 1 ? "您確定要刪除整張單據嗎?" : "您確定要刪除?";
-    if (confirm(confirmMessage)) {
+
+    if (confirm("您確定要刪除?")) {
       const params = {
         danno: form.danno,
         id: item["NA.cldhditm.id"],
+        target: 'itm',
       };
       const data = await utils.fetchData("cldhdDelete.php", params); // 透過api刪除資料
       console.log("刪除資料結果：", data);
@@ -989,12 +1025,10 @@ const deleteRow = async (item) => {
       if (index !== -1) {
         results.value.splice(index, 1); // 從 results 中移除
         orderInDBNum.value = orderInDBNum.value - 1; // 更新行數
-        if (orderInDBNum.value === 0) {
-          setMode("view"); // 如果刪除的是最後一行, 則切換到查看模式
-        }
       } else {
         console.error("Item not found in results:", item);
       }
+
     } 
   } else {
     // 刪除調用訂單新增的row
@@ -1025,6 +1059,7 @@ const deleteOrder = async () => {
           const params = {
             danno: form.danno,
             id: item["NA.cldhditm.id"],
+            target: 'all',
           };
           const data = await utils.fetchData("cldhdDelete.php", params); // 透過api刪除資料
           console.log("刪除資料結果：", data);
@@ -1192,7 +1227,7 @@ const {
   isFieldDisabled,
   focusNextInvalidField,
   isFocusMechanismActive,
-  isShowFormError ,
+  isErrorVisible ,
   isFormComplete,
 } = useFieldValidate(results, form, formRows.value, fieldRefs, labels.value);
 
@@ -1234,214 +1269,27 @@ const specialTableColumns = {
   "header.cldhditm.note": textColumnsConfig(),
 };
 
-const printOrder = () => {
-  // 列印
-
-  const company = {
-    name: "東莞萬成模具五金制品有限公司",
-    tel: "TEL: (0769)88731998 88462999",
-    fax: "FAX: (0769)88732330",
-    address: "地址: 東莞市高步鎮洗沙管理區",
-  };
-
-  // Using data from form and hardcoded values from image for missing fields
-  const supplier = {
-    name: form.supplyname,
-    address: "深圳市寶安區松崗街道華美路1號", // Hardcoded from image
-    tel: "6643/6642/6673 0755-297", // Hardcoded from image
-    fax: "0755-29712058/0757-", // Hardcoded from image
-    contact: "戚小姐/金玉慧/朱經", // Hardcoded from image
-  };
-
-  const order = {
-    id: form.danno,
-    date: form.ddate,
-    currency:
-      results.value.length > 0
-        ? results.value[0]["header.cldhditm.payno"]
-        : "RMB",
-  };
-
-  const itemsHtml = results.value
-    .map(
-      (item, index) => `
-    <tr>
-      <td style="text-align: center;">${index + 1}</td>
-      <td>${item["header.cldhditm.spno"] || ""}</td>
-      <td>${item["header.sp.spspec"] || ""}</td>
-      <td style="text-align: center;">${item["header.sp.spunit"] || ""}</td>
-      <td style="text-align: right;">${item["header.cldhditm.pcs"] || ""}</td>
-      <td style="text-align: right;">${item["header.cldhditm.kg"] || ""}</td>
-      <td style="text-align: right;">${item["header.cldhditm.price"] || ""}</td>
-      <td style="text-align: right;">${item["header.cldhditm.pay"] || ""}</td>
-      <td style="text-align: center;">${
-        item["header.cldhditm.gdate"] || ""
-      }</td>
-      <td>${item["header.cldhditm.note"] || ""}</td>
-    </tr>
-  `
-    )
-    .join("");
-
-  // Add empty rows to fill the page if items are few
-  const minRows = 6; // Adjust as needed
-  let emptyRowsHtml = "";
-  if (results.value.length < minRows) {
-    for (let i = 0; i < minRows - results.value.length; i++) {
-      emptyRowsHtml +=
-        "<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>";
-    }
+function handleBeforeUnload(event) {
+  // 在離開頁面前檢查是否有未儲存的變更
+  if (mode.value !== "view") {
+    event.preventDefault(); // 只有在非view模式才彈窗，提示使用者有未儲存的變更
+    event.returnValue = ''; // 為了相容舊版瀏覽器，需要設置 returnValue
   }
+}
 
-  const totalAmount = utils.calculateColumnSum(
-    results.value,
-    "header.cldhditm.pay"
-  );
-  const formattedTotal =
-    typeof totalAmount === "number" ? totalAmount.toFixed(2) : "";
-
-  const htmlContent = `
-    <html>
-      <head>
-        <title>內銷訂購單 - ${order.id}</title>
-        <style>
-          @page { size: landscape; width: 800px; height: 500px;}
-          body { font-family: 'PMingLiU'}
-          table { width: 100%; border-collapse: collapse; font-size: 10pt; }
-          /* 只保留表頭和tfoot有線條 */
-          .main-table, .main-table th {
-            border: 1px solid black;
-          }
-          .main-table td, .main-table tbody td, .main-table tfoot td {
-            border: none;
-          }
-            /* 只有第一欄有框線 */
-          .main-table td:first-child, .main-table th:first-child {
-            border-left: 1px solid black;
-            border-right: 1px solid black;
-          }
-          .main-table th, .main-table td { padding: 3px; border-left: none; border-right: none;}
-          .header { font-family: '宋体', 'SimSun', sans-serif; text-align: center; }
-          .header h1 { font-size: 18pt; margin: 0; }
-          .header p { margin: 0; font-size: 10pt; }
-          .title { text-align: center; font-size: 16pt; font-weight: bold; padding: 5px 0; }
-          .info-table td { border: 1px solid black; padding: 3px; vertical-align: middle; }
-          .items-table th { text-align: center; }
-          .items-table td { vertical-align: top; height: 22px; } /* Set fixed height for rows */
-          .footer-table td { border: 1px solid black; padding-top: 20px; padding-bottom: 20px; }
-          .notes { font-size: 10pt; }
-          .bottom-bar { bottom: 1cm; left: 1cm; right: 1cm; display: flex; justify-content: space-between; font-size: 10pt; }
-          .text-right { text-align: right; }
-          .text-center { text-align: center; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1>${company.name}</h1>
-          <p>${company.tel} &nbsp;&nbsp; ${company.fax}</p>
-          <p>${company.address}</p>
-        </div>
-        
-        <table style="width: 100%;">
-          <tr>
-            <td style="width: 40%;"><b>訂單號碼：</b>${order.id}</td>
-            <td style="width: 20%; font-size: 16pt;"><div class="title">內 銷 訂 購 單</div></td>
-            <td style="width: 40%;" class="text-right"><b>訂購日期：</b>${
-              order.date
-            }</td>
-          </tr>
-        </table>
-
-        <table class="info-table">
-          <tr>
-            <td style="width: 10%;"><b>廠商名稱</b></td>
-            <td style="width: 35%;">${supplier.name}</td>
-            <td style="width: 10%;"><b>聯絡人</b></td>
-            <td style="width: 20%;">${supplier.contact}</td>
-            <td style="width: 10%;"><b>傳真</b></td>
-            <td style="width: 15%;">${supplier.fax}</td>
-          </tr>
-          <tr>
-            <td><b>廠商地址</b></td>
-            <td>${supplier.address}</td>
-            <td><b>電話</b></td>
-            <td>${supplier.tel}</td>
-            <td><b>幣別</b></td>
-            <td>${order.currency}</td>
-          </tr>
-        </table>
-
-        <table class="main-table items-table">
-          <thead>
-            <tr>
-              <th style="width: 4%; white-space: nowrap;">項目</th>
-              <th style="width: 15%;">編碼</th>
-              <th style="width: 24%;">規格</th>
-              <th style="width: 5%;">單位</th>
-              <th style="width: 7%;">數量</th>
-              <th style="width: 8%;">重量</th>
-              <th style="width: 8%;">單價</th>
-              <th style="width: 9%;">金額</th>
-              <th style="width: 10%;">交貨日期</th>
-              <th style="width: 10%;">用途</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${itemsHtml}
-            ${emptyRowsHtml}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td style="width: 4%;" class="text-right"></td>
-              <td colspan="5"></td>
-              <td class="text-right" style="white-space: nowrap;">合計：${formattedTotal}</td>
-              <td colspan="7"></td>
-            </tr>
-          </tfoot>
-        </table>
-
-        <table class="footer-table" style="width: 100%;">
-          <tr>
-            <td style="width: 5%; white-space: nowrap;">核准</td>
-            <td style="width: 20%;"></td>
-            <td style="width: 5%; white-space: nowrap;">審核</td>
-            <td style="width: 20%;"></td>
-            <td style="width: 5%; white-space: nowrap;">主管</td>
-            <td style="width: 20%;"></td>
-            <td style="width: 5%; white-space: nowrap;">采購</td>
-            <td style="width: 20%;"></td>
-          </tr>
-        </table>
-
-        <div class="notes">
-          <b>說明：</b>
-          <ol style="margin: 0; padding-left: 40px;">
-            <li>付款條件：月結 90 天。</li>
-            <li>訂單請于隔天簽回，否則視同默認. 造成一切後果由貴司承擔.</li>
-            <li>此材料為HSF材料</li>
-          </ol>
-        </div>
-
-        <div class="bottom-bar">
-          <span>Q-4-10-03-A01</span>
-          <span>第 1 頁 / 共 1 頁</span>
-          <span>廠商回復__________________</span>
-        </div>
-      </body>
-    </html>
-  `;
-
-  const printWindow = window.open("", "_blank");
-  printWindow.document.write(htmlContent);
-  //return;
-  printWindow.document.close();
-  printWindow.focus();
-  setTimeout(() => {
-    printWindow.print();
-    printWindow.close();
-  }, 250);
-  
-};
+function handlePageHide(event) {
+  // 執行清理操作，刪除沒有itm的mst
+  if (mode.value === 'edit' && orderInDBNum.value === 0) {
+    // 使用 navigator.sendBeacon() 可靠地在頁面卸載時發送請求。
+    // 它以非同步方式發送請求，不會延遲頁面的卸載，確保資料能成功發送。
+    // 注意：sendBeacon 發送的是 POST 請求。
+    // #BusinessLogic
+    const formData = new FormData(); // 內建的類別
+    formData.append('danno', form.danno);
+    formData.append('target', 'mst');
+    navigator.sendBeacon(utils.getApiUrl("cldhdDelete.php"), formData);
+  }
+}
 
 // --- Lifecycle Hooks ---
 onMounted(async () => {
@@ -1451,7 +1299,16 @@ onMounted(async () => {
   await setMode("view");
 
   utils.handleUrlParams(setMode); // 處理URL中的參數，並自動切換到對應的模式
+
+  window.addEventListener("beforeunload", handleBeforeUnload);
+  window.addEventListener("pagehide", handlePageHide);
 });
+
+onBeforeUnmount(() => {
+  window.removeEventListener("beforeunload", handleBeforeUnload);
+  window.removeEventListener("pagehide", handlePageHide);
+});
+
 </script>
 
 <style src="@/assets/vCustom.css" scoped></style>

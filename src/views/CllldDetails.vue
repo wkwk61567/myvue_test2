@@ -24,7 +24,7 @@
           : results.length === 0
             ? '請先加入資料' : ''
       "
-      :discard="() => setMode('view')"
+      :discard="discard"
       :isButtonsSaveDiscardVisible="mode !== 'view'"
     />
     <!-- form區塊 -->
@@ -61,7 +61,7 @@
                   :style="{ backgroundColor: INPUT_COLORS[field.inputType] }"
                   :append-inner-icon="field.icon"
                   @click:append-inner="field.onClick"
-                  :error="isShowFormError (mode, field, form[field.column])"
+                  :error="isErrorVisible (mode, field, form[field.column])"
                 />
               </template>
               <template v-else>
@@ -105,7 +105,7 @@
                       ? { type: 'date' }
                       : {}
                   "
-                  :error="isShowFormError (mode, field, form[field.column])"
+                  :error="isErrorVisible (mode, field, form[field.column])"
                   @change="updateForm(field)"
                   @update:modelValue="field.componentType === 'select' ? updateForm(field) : null"
                 />
@@ -272,6 +272,7 @@ import {
   reactive,
   computed,
   onMounted,
+  onBeforeUnmount,
   inject,
   watch,
   nextTick,
@@ -551,7 +552,7 @@ const setMode = async (newMode) => {
   } else if (newMode === "edit") {
     // 設定為修改模式
     if (form.audit !== null && form.audit !== "") {
-      alert("此單已審核，不能修改");  // #BusinessLogic
+      alert("此單已審核，不能修改"); // #BusinessLogic
       return;
     }
   } else if( newMode === "view") {
@@ -692,6 +693,41 @@ const save = async () => {
   await setMode("view"); // 切換到查看模式
 };
 
+const discard = async () => {
+  // 放棄
+  
+  let confirmMessage = "";
+  const isHasUnsavedRows = results.value.some(item => item["header.clllditm.id"] > idLastInDB.value); // 是否有未儲存的行
+  const isNoRowsInDB = orderInDBNum.value === 0; // 是否沒有行在資料庫中
+  
+  if (mode.value === "add") {
+    if (isHasUnsavedRows) {
+      confirmMessage = "有未保存的行，您確定要放棄嗎?";
+    }
+  } else if (mode.value === "edit") {
+    if (isHasUnsavedRows && isNoRowsInDB) {
+      confirmMessage = "有未保存的行，放棄將會導致整張單據刪除，您確定要放棄嗎?";
+    } else if (isHasUnsavedRows) {
+      confirmMessage = "有未保存的行，您確定要放棄嗎?";
+    } else if (isNoRowsInDB) {
+      confirmMessage = "放棄將導致整張單據刪除，您確定要放棄嗎?";
+    }
+  }
+
+  if (confirmMessage && !confirm(confirmMessage)) return; // 如果使用者按取消, 不進行放棄
+
+  if (isNoRowsInDB) {
+    const params = {
+        danno: form.danno,
+        target: 'mst',
+      };
+      const data = await utils.fetchData("cllldDelete.php", params); // 透過api刪除資料
+      console.log("刪除資料結果：", data);
+  }
+  
+  setMode("view"); // 切換到查看模式
+};
+
 const updateForm = async (field) => {
   // 更新form的欄位
 
@@ -727,6 +763,12 @@ const updateForm = async (field) => {
 
 const updateTable = async (item, key) => {
   // 更新table的欄位
+
+   // 檢查該row是否已經結案 #BusinessLogic
+  if (item["NA.scgcdmst.jaflag"] === 1) {
+    alert("此工令單已結案，不能修改");
+    return;
+  }
 
   // 檢查數量是否符合限制 #BusinessLogic
   if (key === "header.clllditm.pcs" || key === "header.clllditm.pcsnx") {
@@ -817,12 +859,11 @@ const updateTable = async (item, key) => {
 const deleteRow = async (item) => {
   // 刪行
   if (item["header.clllditm.id"] <= idLastInDB.value) {
-    const confirmMessage =
-      orderInDBNum.value === 1 ? "您確定要刪除整張單據嗎?" : "您確定要刪除?";
-    if (confirm(confirmMessage)) {
+    if (confirm("您確定要刪除?")) {
       const params = {
         danno: form.danno,
         id: item["header.clllditm.id"],
+        target: 'itm',
       };
       const data = await utils.fetchData("cllldDelete.php", params); // 透過api刪除資料
       console.log("刪除資料結果：", data);
@@ -833,9 +874,6 @@ const deleteRow = async (item) => {
       if (index !== -1) {
         results.value.splice(index, 1); // 從 results 中移除
         orderInDBNum.value = orderInDBNum.value - 1; // 更新行數
-        if (orderInDBNum.value === 0) {
-          setMode("view"); // 如果刪除的是最後一行, 則切換到查看模式
-        }
       } else {
         console.error("Item not found in results:", item);
       }
@@ -863,6 +901,7 @@ const deleteOrder = async () => {
           const params = {
             danno: form.danno,
             id: item["header.clllditm.id"],
+            target: 'all',
           };
           const data = await utils.fetchData("cllldDelete.php", params); // 透過api刪除資料
           console.log("刪除資料結果：", data);
@@ -1023,7 +1062,7 @@ const {
   isFieldDisabled,
   focusNextInvalidField,
   isFocusMechanismActive,
-  isShowFormError ,
+  isErrorVisible ,
   isFormComplete,
 } = useFieldValidate(results, form, formRows.value, fieldRefs, labels.value);
 
@@ -1062,12 +1101,43 @@ const specialTableColumns = {
   'header.clllditm.note': textColumnsConfig(),
 };
 
+function handleBeforeUnload(event) {
+  // 在離開頁面前檢查是否有未儲存的變更
+  if (mode.value !== "view") {
+    event.preventDefault(); // 只有在非view模式才彈窗，提示使用者有未儲存的變更
+    event.returnValue = ''; // 為了相容舊版瀏覽器，需要設置 returnValue
+  }
+}
+
+function handlePageHide(event) {
+  // 執行清理操作，刪除沒有itm的mst
+  if (mode.value === 'edit' && orderInDBNum.value === 0) {
+    // 使用 navigator.sendBeacon() 可靠地在頁面卸載時發送請求。
+    // 它以非同步方式發送請求，不會延遲頁面的卸載，確保資料能成功發送。
+    // 注意：sendBeacon 發送的是 POST 請求。
+    // #BusinessLogic
+    const formData = new FormData(); // 內建的類別
+    formData.append('danno', form.danno);
+    formData.append('target', 'mst');
+    navigator.sendBeacon(utils.getApiUrl("cllldDelete.php"), formData);
+  }
+}
+
 // --- Lifecycle Hooks ---
 onMounted(async () => {
   await setMode("view");
 
   utils.handleUrlParams(setMode); // 處理URL中的參數，並自動切換到對應的模式
+
+  window.addEventListener("beforeunload", handleBeforeUnload);
+  window.addEventListener("pagehide", handlePageHide);
 });
+
+onBeforeUnmount(() => {
+  window.removeEventListener("beforeunload", handleBeforeUnload);
+  window.removeEventListener("pagehide", handlePageHide);
+});
+
 </script>
 
 <style src="@/assets/vCustom.css" scoped></style>

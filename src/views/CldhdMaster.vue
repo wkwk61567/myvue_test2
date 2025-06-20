@@ -14,6 +14,8 @@
       :isToggleAuditDisabled="isToggleAuditDisabled"
       :exportExcel="() => utils.exportExcel(results.value, headers.value, '材料采購單單據', '材料采購單單據')"
       :isExportExcelDisabled="isExportExcelDisabled"
+      :printOrder="() => utils.printCldhdOrder(selectedRow['header.cldhdmst.danno'])"
+      :isPrintOrderDisabled="isPrintOrderDisabled || selectedRow === null || selectedRow['header.cldhdmst.audit'] === null || selectedRow['header.cldhdmst.audit'] === ''"
     />
     <!-- form區塊 -->
     <v-card>
@@ -287,10 +289,16 @@ const deleteOrder = async () => {
         const params = {
           danno: selectedRow.value["header.cldhdmst.danno"],
           id: item["NA.cldhditm.id"],
+          target: 'itm',
         };
         const data = await utils.fetchData("cldhdDelete.php", params); // 透過api刪除資料
         console.log("刪除資料結果：", data);
       }
+      const data = await utils.fetchData("cldhdDelete.php",  {
+          danno: selectedRow.value["header.cldhdmst.danno"],
+          target: 'mst',
+      }); // 刪除mst
+      console.log("刪除資料結果：", data);
       alert("刪除完成");
     }
   } else {
