@@ -201,7 +201,10 @@
                         ? 'v-select'
                         : 'v-text-field'"
                     v-model="item[header.key]"
-                    v-bind="specialTableColumns[header.key].getProps(item, header.key)"
+                    v-bind="{
+                      ...specialTableColumns[header.key].getProps(item, header.key),
+                      disabled: mode !== 'view' && (item['NA.scgcdmst.jaflag'] === 1 || item['NA.scgcdmst.lock'] === 1)
+                    }"
                     v-on="specialTableColumns[header.key].getEvents(item, header.key)"
                   />
                 </td>
@@ -331,7 +334,9 @@ const scgcdQuery = reactive({
   spkindno: "",
 }); // 工令單查詢條件
 // 調用發料單
-const openScgcdDialog = (gcdno = "") => {
+const openScgcdDialog = (item = null, gcdno = "") => {
+  selecrRow = item; // 直接點選表格中的公令單號時，儲存選取的行
+
   // 打開工令單物控向導的小視窗(調用發料單)
   scgcdQuery.gcdno = gcdno;
 
@@ -345,6 +350,12 @@ const openScgcdDialog = (gcdno = "") => {
 };
 const selectScgcd = (item) => {
   // 選擇工令單
+
+  // 檢查該row是否已經結案 #BusinessLogic
+  if (item["NA.scgcdmst.jaflag"] === 1) {
+    alert("此工令單已結案，不能調用");
+    return;
+  }
 
   // 當(llpcs + tlpcs) / yfpcs 超過一定的比例, 才可以做制損領料 #BusinessLogic
   if (form.kind === "生產制損" && (item["header.scgcditm.llpcs"] + item["header.scgcditm.tlpcs"]) / item["header.scgcditm.yfpcs"]
@@ -380,7 +391,18 @@ const selectScgcd = (item) => {
   tempItem["NA.sp.clkind"] = item["NA.sp.clkind"];
   console.log("選擇的工令單資料：", tempItem);
 
-  results.value.push(tempItem); // 新增一行
+  if (selecrRow === null || mode.value === "edit") {
+    results.value.push(tempItem); // 新增一行
+  } else {
+    // 如果是直接點選表格中的工令單號，則更新該行
+    // 改變工令單號會影響多個欄位, 且使用者必須重新填寫實收數, 但是編輯模式時一次只保存一個欄位, 如果允許在編輯模式修改工令單號, 會與現在的邏輯不符合
+    tempItem["header.clllditm.id"] = selecrRow["header.clllditm.id"]; // 保留原有的id
+    idCurrent.value--; // 恢復idCurrent的值
+    console.log("更新選取的行：", selecrRow);
+    Object.assign(selecrRow, tempItem); // 更新選取的行
+    selecrRow = null;
+  }
+  
 
   isScgcdDialogVisible.value = false; // 關閉工令單物控向導的小視窗
 };
@@ -764,12 +786,6 @@ const updateForm = async (field) => {
 const updateTable = async (item, key) => {
   // 更新table的欄位
 
-   // 檢查該row是否已經結案 #BusinessLogic
-  if (item["NA.scgcdmst.jaflag"] === 1) {
-    alert("此工令單已結案，不能修改");
-    return;
-  }
-
   // 檢查數量是否符合限制 #BusinessLogic
   if (key === "header.clllditm.pcs" || key === "header.clllditm.pcsnx") {
     // 處理實發數欄位的變更
@@ -1077,21 +1093,21 @@ const specialTableColumns = {
   'header.clllditm.gcdno': {
     getProps: (item, key) => ({
       readonly: true,
-      'append-inner-icon': mode.value !== 'view' ? 'mdi-dots-horizontal-circle' : null,
+      'append-inner-icon': mode.value === 'add' ? 'mdi-dots-horizontal-circle' : null,
       class: labels.value[key]?.dataType === 'number' ? 'number-field' : '',
     }),
     getEvents: (item, key) => ({
-      'click:append-inner': () => form.kind === '包材領料' ? null : openScgcdDialog(),
+      'click:append-inner': () => form.kind === '包材領料' ? null : openScgcdDialog(item),
     }),
   },
   'header.clllditm.spno': {
     getProps: (item, key) => ({
       readonly: true,
-      'append-inner-icon': mode.value !== 'view' ? 'mdi-dots-horizontal-circle' : null,
+      'append-inner-icon': mode.value === 'add' ? 'mdi-dots-horizontal-circle' : null,
       class: labels.value[key]?.dataType === 'number' ? 'number-field' : '',
     }),
     getEvents: (item, key) => ({
-      'click:append-inner': () => item['header.clllditm.gcdno'] === '' ? openSpDialog(item) : openScgcdDialog(item['header.clllditm.gcdno']),
+      'click:append-inner': () => item['header.clllditm.gcdno'] === '' ? openSpDialog(item) : openScgcdDialog(item, item['header.clllditm.gcdno']),
     }),
   },
   'header.clllditm.sqpcs': numberColumnsConfig(),
