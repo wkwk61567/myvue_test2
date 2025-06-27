@@ -10,7 +10,7 @@
       :isDeleteOrderDisabled="isDeleteOrderDisabled"
       :toggleAudit="toggleAudit"
       :isToggleAuditDisabled="isToggleAuditDisabled"
-      :exportExcel="() => utils.exportExcel(results.value, headers.value, '材料QC一覽表明細', '材料QC一覽表明細')"
+      :exportExcel="() => utils.exportExcel(results, headers, '材料QC一覽表明細', '材料QC一覽表明細')"
       :isExportExcelDisabled="isExportExcelDisabled"
       :isButtonsCRUDPVisible="mode === 'view'"
     />
@@ -49,6 +49,7 @@
                   v-model="form[field.column]"
                   :label="field.name"
                   :readonly="
+                    field.isReadonly ? field.isReadonly ():
                     utils.isReadonly(
                       mode,
                       field.inputType,
@@ -71,7 +72,7 @@
                       : 'v-text-field'"
                   v-model="form[field.column]"
                   :label="field.name"
-                  :readonly="utils.isReadonly(mode, field.inputType, field.isEditable, field.componentType)"
+                  :readonly="field.isReadonly ? field.isReadonly ():utils.isReadonly(mode, field.inputType, field.isEditable, field.componentType)"
                   :style="{ backgroundColor: INPUT_COLORS[field.inputType] }"
                   v-bind="field.componentType === 'checkbox'
                     ? { disabled: utils.isReadonly(mode, field.inputType, field.isEditable, field.componentType) }
@@ -88,7 +89,7 @@
             </v-col>
           </template>
         </v-row>
-        <!-- ...的小視窗 -->
+        <!-- 供方的小視窗 -->
         <SupplyDialog
           :dialog="dialog"
           @update:dialog="dialog = $event"
@@ -251,7 +252,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onBeforeUnmount, inject } from "vue";
+import { ref, reactive, computed, onMounted, onBeforeUnmount, inject, nextTick } from "vue";
 import { useRouter } from "vue-router";
 import { INPUT_COLORS, HOVER_COLOR } from "@/config.js";
 import * as utils from "@/utils/utils.js";
@@ -332,8 +333,63 @@ const {
   orderFiltered, // 用來存儲過濾後的訂單列表 顯示於調用訂單介面(CallOrderDialog)
   openCallOrdersDialog, // 打開調用訂單介面(CallOrderDialog)
   handleInputOrderQuery, // 處理調用訂單介面(CallOrderDialog)的查詢條件
-  selectOrder, // 暫時儲存訂單到下方的表格
-} = useOrderDialog(results, idCurrent);
+} = useOrderDialog(); // 訂貨單的小視窗的狀態和方法
+
+const selectOrder = async (order) => {
+    // 暫時儲存訂單到下方的表格
+    // order是調用訂單中雙擊選中的item
+
+    // 檢查交貨日期 #BusinessLogic
+    if (! form.ddate) {
+      alert("收貨日期未設定");
+      return;
+    }
+    const gdate = new Date(order["header.cldhditm.gdate"]);
+    const earliestAllowedDate = new Date(gdate);
+    earliestAllowedDate.setDate(gdate.getDate() - 3);
+    if (new Date( form.ddate) < earliestAllowedDate) {
+      alert("交期未到, 只能提前3天交貨"); // #BusinessLogic
+      return;
+    }
+
+    idCurrent.value += 1;
+
+    // 根據在調用訂單對話框選擇的未結訂單，將相關資訊帶入材料QC一覽表單據頁面下方表格，供輸入暫收數量和暫收重量
+    let tempOrder = {};
+    tempOrder["header.cljhdmst.supplyno"] = order["header.cldhdmst.supplyno"];
+    tempOrder["header.cljhditm.id"] = idCurrent.value;
+    tempOrder["header.cljhditm.dhdno"] = order["header.cldhditm.danno"];
+    tempOrder["header.cljhditm.dhdid"] = order["header.cldhditm.dhdid"];
+    tempOrder["header.cljhditm.spno"] = order["header.cldhditm.spno"];
+    tempOrder["header.sp.spspec"] = order["header.sp.spspec"];
+    tempOrder["header.sp.spunit"] = order["header.sp.spunit"];
+    tempOrder["header.cljhditm.dhdpcs"] = order["header.cldhditm.dhdpcs"];
+    tempOrder["header.cljhditm.getpcs"] = order["header.cldhditm.getpcs"];
+    tempOrder["header.cljhditm.notpcs"] = order["header.NA.notpcs"];
+    tempOrder["header.cljhditm.jhpcs"] = 0;
+    tempOrder["header.cljhditm.jhkg"] = 0;
+    tempOrder["header.cljhditm.jhdz"] = NaN;
+    tempOrder["header.sp.dz"] = order["NA.sp.dz"];
+    tempOrder["header.cljhditm.dzrate"] = NaN;
+    //實收良品數量 pcs
+    //實收良品重量 kg
+    //實收不良品數量 pcsth
+    tempOrder["header.cljhditm.payno"] = order["header.cldhditm.payno"];
+    tempOrder["header.cljhditm.price"] = order["header.cldhditm.price"];
+    tempOrder["header.cljhditm.pay"] = 0;
+    //品檢結果 qcnote
+    tempOrder["header.cljhditm.gdate"] = order["header.cldhditm.gdate"];
+    tempOrder.spkindno = order.spkindno;
+    tempOrder.clkind = order.clkind;
+    console.log("暫存：", tempOrder);
+    results.value.push(tempOrder);
+
+    isCallOrderDialogVisible.value = false; // 關閉調用訂單介面
+
+    // 等待DOM更新後，將焦點設置到新添加的行
+    await nextTick();
+    focusNextInvalidField(tempOrder);
+}
 
 const orderInDBNum = ref(0); // 原本的行數，用來判斷是不是只剩一個row，是的話會在刪除此row後刪除整張收貨單
 
@@ -445,7 +501,7 @@ const {
   filteredSuppliers,
   openDialog,
   handleInputSupplyQueryAndTempSupplykind,
-} = useSupplyDialog(); // ...視窗的狀態和方法
+} = useSupplyDialog(); // 供方查詢介面的狀態和方法
 
 const selectSupplier = async (supplier) => {
   // 用戶選擇供方編碼後，將編碼放入供方編碼欄位
@@ -552,7 +608,7 @@ const discard = async () => {
 
   if (confirmMessage && !confirm(confirmMessage)) return; // 如果使用者按取消, 不進行放棄
 
-  if (isNoRowsInDB) {
+  if (mode.value === "edit" && isNoRowsInDB) {
     const params = {
         danno: form.danno,
         target: 'mst',
@@ -623,6 +679,7 @@ const updateTable = async (item, key) => {
     ) {
       itemLimitPercentage = parseFloat(limitPercentage.value["cljhd_flccb"]);
     } else {
+      console.log("不支援的供方類別或材料類別", item.spkindno);
       alert("錯誤! 不支援的供方類別或材料類別");
       return;
     }
@@ -698,6 +755,23 @@ const updateTable = async (item, key) => {
       console.error(`欄位 ${key} 的值無效:`, item[key]);
       return;
     }
+    
+    // 做"同樣訂單序號有新的收貨單收貨紀錄"的檢查
+    if (key === "header.cljhditm.jhpcs") {
+      const params = {
+        danno: form.danno,
+        id: item["header.cljhditm.id"],
+        dhdid: item["header.cljhditm.dhdid"],
+      };
+      const data = await utils.fetchData("checkDuplicateCljhditm.php", params); // 檢查是否有重複的收貨紀錄
+      console.log("檢查重複收貨紀錄結果:", data);
+      // 如果data的長度大於0
+      if (data.length > 0) {
+        alert(`注意: 該訂單已有${data.length}筆新的收貨紀錄 `);
+      }
+    }
+    
+
 
     if (confirm(`您確定要更新${labels.value[key].name}為${item[key]}嗎?`)) {
       const params = {
@@ -708,6 +782,7 @@ const updateTable = async (item, key) => {
       };
       const data = await utils.fetchData("cljhditmUpdate.php", params); // 透過api更新資料
       if (data.error) {
+        console.error("更新失敗:", data.error);
         alert("更新失敗: " + data.error);
         return;
       }
@@ -728,7 +803,7 @@ const deleteRow = (item) => {
       alert("目前預設免檢是打勾的, 所有保存的訂單都會自動入庫, 無法單行刪除");
     }
   } else {
-    // 刪除調用訂單新增的row
+    // 刪除新增的row
     const index = results.value.findIndex(
       (result) =>
         result["header.cljhditm.id"] === item["header.cljhditm.id"]
@@ -854,14 +929,14 @@ const {
   numberColumnsConfig,
   textColumnsConfig,
   dateColumnsConfig,
-} = useTableColumnConfig(mode, labels, isFieldValid, getInvalidGroupNames, handleFocus, handleBlur, isFieldDisabled, isFocusMechanismActive, updateTable, setFieldRef);
+} = useTableColumnConfig(mode, labels, isFieldValid, getInvalidGroupNames, handleFocus, handleBlur, isFieldDisabled, isFocusMechanismActive, updateTable, setFieldRef); // 通用的表格欄位設定
 
 // 表格中需要特殊處理的欄位
 const specialTableColumns = {
   "header.cljhditm.jhpcs": numberColumnsConfig(),
   "header.cljhditm.jhkg": {
     getProps: (item, key) => ({
-      ref: setFieldRef(`field_${item["NA.cldhditm.id"]}_${key}`),
+      ref: setFieldRef(`field_${item["NA.cljhditm.id"]}_${key}`),
       readonly: mode.value === 'view' || !(item.spkindno === '3' && (item.clkind === '板料' || item.clkind === '鋁擠型')) || isFieldDisabled(item, key),
       class: labels.value[key]?.dataType === "number" ? "number-field" : "",
       error:

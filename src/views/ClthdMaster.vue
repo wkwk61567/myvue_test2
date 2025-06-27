@@ -1,18 +1,30 @@
-<!-- 材料QC一覽表單據頁面 -->
+<!-- 采購退貨單單據頁面 -->
 <template>
   <v-container style="max-width: none">
     <ButtonsCRUDP
       :query="query"
       :isQueryDisabled="false"
-      :add="() => goToPage(selectedRow?.['header.cljhdmst.danno'], { mode: 'add' })"
+      :add="
+        () => goToPage(selectedRow?.['header.cljhdmst.danno'], { mode: 'add' })
+      "
       :isAddDisabled="isAddDisabled"
-      :edit="() => goToPage(selectedRow?.['header.cljhdmst.danno'], { mode: 'edit' })"
+      :edit="
+        () => goToPage(selectedRow?.['header.cljhdmst.danno'], { mode: 'edit' })
+      "
       :isEditDisabled="isEditDisabled"
       :deleteOrder="deleteOrder"
       :isDeleteOrderDisabled="isDeleteOrderDisabled"
       :toggleAudit="toggleAudit"
       :isToggleAuditDisabled="isToggleAuditDisabled"
-      :exportExcel="() => utils.exportExcel(results, headers, '材料QC一覽表單據', '材料QC一覽表單據')"
+      :exportExcel="
+        () =>
+          utils.exportExcel(
+            results,
+            headers,
+            '采購退貨單單據',
+            '采購退貨單單據'
+          )
+      "
       :isExportExcelDisabled="isExportExcelDisabled"
     />
     <!-- form區塊 -->
@@ -95,7 +107,7 @@
         :items="results"
         no-data-text="No data available"
         :items-per-page="25"
-        style="min-width: 1200px;  max-height: 1200px; overflow-y: auto"
+        style="min-width: 1200px; max-height: 1200px; overflow-y: auto"
         fixed-header
         height="400px"
       >
@@ -115,7 +127,9 @@
             <tr
               v-bind="hoverProps"
               @click="selectRow(item)"
-              @dblclick="goToPage(item['header.cljhdmst.danno'], { mode: 'view' })"
+              @dblclick="
+                goToPage(item['header.cljhdmst.danno'], { mode: 'view' })
+              "
               :style="
                 isRowSelected(item['header.cljhdmst.danno'])
                   ? { backgroundColor: SELECTED_COLOR }
@@ -126,15 +140,20 @@
             >
               <template v-for="header in headers" :key="header.key">
                 <td v-if="labels[header.key].componentType === 'checkbox'">
-                    <v-checkbox
-                      :model-value="item[header.key] === 1"
-                      disabled
-                    ></v-checkbox>
-                  </td>
-                  <td v-else 
-                    :class="labels[header.key]?.dataType === 'number' ? 'number-td' : ''" 
-                    @click="utils.selectCellText($event)"
-                  >{{ item[header.key] }}</td>
+                  <v-checkbox
+                    :model-value="item[header.key] === 1"
+                    disabled
+                  ></v-checkbox>
+                </td>
+                <td
+                  v-else
+                  :class="
+                    labels[header.key]?.dataType === 'number' ? 'number-td' : ''
+                  "
+                  @click="utils.selectCellText($event)"
+                >
+                  {{ item[header.key] }}
+                </td>
               </template>
             </tr>
           </v-hover>
@@ -159,7 +178,7 @@ import { useGoToPage } from "@/composables/useGoToPage.js";
 const selectedLanguage = inject("selectedLanguage"); // 接收selectedLanguage 作為目前顯示的語言
 
 // 表格的名稱
-const formno = "cljhd";
+const formno = "clthd"; // 與cljhd共用表格
 const tableNameMST = "cljhdmst";
 const tableNameITM = "cljhditm";
 
@@ -171,18 +190,16 @@ const { labels, headers } = useI18nHeadersLabels(selectedLanguage, fileName);
 const form = reactive({
   dDateStart: "", // 起始日期
   dDateEnd: "", // 結束日期
-  danno: "", // 收貨單號
+  danno: "", // 退貨單號
   dannobase: "", // 原始單號
-  spkindname: null, // 收貨類別
 });
 
 const spkindnoOptions = ref([]); // 收貨類別選項
 const spkindnoOptionsWithEmpty = computed(() => {
   return [{ spkindno: "", spkindname: null }, ...spkindnoOptions.value];
 }); // 在收貨類別選項中加入「不設限」選項
-const formSelectOptions = {
-  spkindname: spkindnoOptionsWithEmpty,
-}; // form中的所有選項
+
+const formSelectOptions = {}; // form中的所有選項
 
 const {
   dialog,
@@ -203,8 +220,14 @@ const selectSupplier = (supplier) => {
 // 上方的欄位
 const formRows = computed(() => {
   const formRowsTemp = [
-    [labels.value['filter.cljhdmst.dDateStart'], labels.value['filter.cljhdmst.dDateEnd']],
-    [labels.value['filter.cljhdmst.danno'], labels.value['filter.cljhdmst.dannobase']],
+    [
+      labels.value["filter.cljhdmst.dDateStart"],
+      labels.value["filter.cljhdmst.dDateEnd"],
+    ],
+    [
+      labels.value["filter.cljhdmst.danno"],
+      labels.value["filter.cljhdmst.dannobase"],
+    ],
     [
       // 供方編碼(componentType: icon-text-field)
       {
@@ -219,7 +242,6 @@ const formRows = computed(() => {
         onClick: openDialog,
       },
     ],
-    [labels.value['filter.cljhdmst.spkindname']]
   ];
   return formRowsTemp;
 });
@@ -236,8 +258,6 @@ const {
   checkButtonFlags,
 } = useCheckButtonFlags(formno, form.audit);
 
-const { selectedRow, selectRow, isRowSelected } = useSelectRow("header.cljhdmst.danno"); // 選取row相關的變數和函式
-
 const results = ref([]); // 查詢結果
 
 const query = async () => {
@@ -248,20 +268,28 @@ const query = async () => {
     danno: form.danno,
     dannobase: form.dannobase,
     supplyno: form.supplyno,
-    spkindname: form.spkindname,
   };
 
   console.log("查詢條件：", params);
-  results.value = await utils.fetchData("cljhdMaster.php", params);
+  results.value = await utils.fetchData("clthdMaster.php", params);
   console.log("查詢結果：", results.value);
 
   utils.formatDateTimeFields(results.value, labels.value); // 轉換日期和時間欄位
 };
 
-const { goToPage } = useGoToPage("/cljhdDetails", selectedRow, "header.cljhdmst.audit"); // 跳轉到明細頁面的函式
+const { selectedRow, selectRow, isRowSelected } = useSelectRow(
+  "header.cljhdmst.danno"
+); // 選取row相關的變數和函式
+
+const { goToPage } = useGoToPage(
+  "/clthdDetails",
+  selectedRow,
+  "header.cljhdmst.audit"
+); // 跳轉到明細頁面的函式
 
 const deleteOrder = async () => {
   // 廢單
+
   if (selectedRow.value === null) {
     alert("請選擇一筆資料");
     return;
@@ -270,25 +298,25 @@ const deleteOrder = async () => {
     selectedRow.value["header.cljhdmst.audit"] === null ||
     selectedRow.value["header.cljhdmst.audit"] === ""
   ) {
+    const itmData = await utils.fetchData("clthdDetails.php", {
+      danno: selectedRow.value["header.cljhdmst.danno"],
+    }); //透過api獲取該筆單據的明細資料
+    console.log("明細資料:", itmData["table"]);
     if (confirm("您確定要刪除整張單據嗎?")) {
-      const params = {
-        danno: selectedRow.value["header.cljhdmst.danno"],
-      };
-      const itmData = await utils.fetchData("cljhdDetails.php", params); //透過api獲取該筆單據的資料
       if (itmData["table"].length > 0) {
         for (let item of itmData["table"]) {
           const params = {
             danno: selectedRow.value["header.cljhdmst.danno"],
             id: item["header.cljhditm.id"],
-            target: 'all',
+            target: "all",
           };
-          const data = await utils.fetchData("cljhdDelete.php", params); // 透過api刪除資料
+          const data = await utils.fetchData("clthdDelete.php", params); // 透過api刪除資料
           console.log("刪除資料結果：", data);
         }
       } else {
-        const data = await utils.fetchData("cljhdDelete.php", {
+        const data = await utils.fetchData("clthdDelete.php", {
           danno: selectedRow.value["header.cljhdmst.danno"],
-          target: 'mst',
+          target: "mst",
         }); // 刪除mst(避免空的單據時，for不會被執行的狀況)
         console.log("刪除資料結果：", data);
       }
@@ -326,9 +354,6 @@ onMounted(async () => {
   spkindnoOptions.value = await utils.fetchCategories(); // 獲取收貨類別
   checkButtonFlags();
 });
-
-
-
 </script>
 
 <style src="@/assets/vCustom.css" scoped></style>

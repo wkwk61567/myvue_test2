@@ -1,12 +1,14 @@
 import { createRouter, createWebHistory } from "vue-router";
 import OrdersTable from "@/views/OrdersTable.vue"; // 訂單管理頁面
-import CldhdMaster from "@/views/CldhdMaster.vue"; // 訂購單單據頁面
-import CldhdDetails from "@/views/CldhdDetails.vue"; // 訂購單明細頁面
-import CljhdMaster from "@/views/CljhdMaster.vue"; // 收貨單單據頁面
-import CljhdDetails from "@/views/CljhdDetails.vue"; // 收貨單明細頁面
+import CldhdMaster from "@/views/CldhdMaster.vue"; // 材料采購單單據頁面
+import CldhdDetails from "@/views/CldhdDetails.vue"; // 材料采購單明細頁面
+import CljhdMaster from "@/views/CljhdMaster.vue"; // 材料QC一覽表單據頁面
+import CljhdDetails from "@/views/CljhdDetails.vue"; // 材料QC一覽表明細頁面
 import DatabaseQuery_ from "@/views/DatabaseQuery_.vue"; // 資料庫查詢頁面_測試
-import CllldMaster from "@/views/CllldMaster.vue"; // 發料單單據頁面
-import CllldDetails from "@/views/CllldDetails.vue"; // 發料單明細頁面
+import CllldMaster from "@/views/CllldMaster.vue"; // 材料發料單單據頁面
+import CllldDetails from "@/views/CllldDetails.vue"; // 材料發料單明細頁面
+import ClthdMaster from "@/views/ClthdMaster.vue"; // 采購退貨單單據頁面
+import ClthdDetails from "@/views/ClthdDetails.vue"; // 采購退貨單明細頁面
 import Login from "@/views/Login.vue"; // 登入頁面
 //Windows 檔案系統大小寫不敏感 如果只是改檔名大小寫 需要先改成別的檔名 例如 login.vue -> login_.vue -> Login.vue
 import axios from "axios";
@@ -95,6 +97,28 @@ const routes = [
       requiredFormno: "cllld",
       requiredFlag: "findflag",
       titleKey: "cllld",
+    },
+  },
+  {
+    path: "/clthdMaster",
+    component: ClthdMaster,
+    props: true,
+    meta: {
+      requiresAuth: true,
+      requiredFormno: "clthd",
+      requiredFlag: "findflag",
+      titleKey: "clthd",
+    },
+  },
+  {
+    path: "/clthdDetails/:danno",
+    component: ClthdDetails,
+    props: true,
+    meta: {
+      requiresAuth: true,
+      requiredFormno: "clthd",
+      requiredFlag: "findflag",
+      titleKey: "clthd",
     },
   },
   { path: "/query_", component: DatabaseQuery_ }, // 資料庫查詢頁面_測試

@@ -12,7 +12,7 @@
       :isDeleteOrderDisabled="isDeleteOrderDisabled"
       :toggleAudit="toggleAudit"
       :isToggleAuditDisabled="isToggleAuditDisabled"
-      :exportExcel="() => utils.exportExcel(results.value, headers.value, '材料采購單單據', '材料采購單單據')"
+      :exportExcel="() => utils.exportExcel(results, headers, '材料采購單單據', '材料采購單單據')"
       :isExportExcelDisabled="isExportExcelDisabled"
       :printOrder="() => utils.printCldhdOrder(selectedRow['header.cldhdmst.danno'])"
       :isPrintOrderDisabled="isPrintOrderDisabled || selectedRow === null || selectedRow['header.cldhdmst.audit'] === null || selectedRow['header.cldhdmst.audit'] === ''"
@@ -191,7 +191,7 @@ const {
   filteredSuppliers,
   openDialog,
   handleInputSupplyQueryAndTempSupplykind,
-} = useSupplyDialog(); // ...視窗的狀態和方法
+} = useSupplyDialog(); // 供方查詢介面的狀態和方法
 
 const selectSupplier = (supplier) => {
   // 選取供方
@@ -285,20 +285,23 @@ const deleteOrder = async () => {
       }
     }
     if (confirm("您確定要刪除整張單據嗎?")) {
-      for (let item of itmData["table"]) {
-        const params = {
-          danno: selectedRow.value["header.cldhdmst.danno"],
-          id: item["NA.cldhditm.id"],
-          target: 'itm',
-        };
-        const data = await utils.fetchData("cldhdDelete.php", params); // 透過api刪除資料
+      if (itmData["table"].length > 0) {
+        for (let item of itmData["table"]) {
+          const params = {
+            danno: selectedRow.value["header.cldhdmst.danno"],
+            id: item["NA.cldhditm.id"],
+            target: 'all',
+          };
+          const data = await utils.fetchData("cldhdDelete.php", params); // 透過api刪除資料
+          console.log("刪除資料結果：", data);
+        }
+      } else {
+        const data = await utils.fetchData("cldhdDelete.php",  {
+            danno: selectedRow.value["header.cldhdmst.danno"],
+            target: 'mst',
+        }); // 刪除mst(避免空的單據時，for不會被執行的狀況)
         console.log("刪除資料結果：", data);
       }
-      const data = await utils.fetchData("cldhdDelete.php",  {
-          danno: selectedRow.value["header.cldhdmst.danno"],
-          target: 'mst',
-      }); // 刪除mst
-      console.log("刪除資料結果：", data);
       alert("刪除完成");
     }
   } else {

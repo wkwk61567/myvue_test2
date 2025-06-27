@@ -39,21 +39,6 @@ export function useSupplyDialog() {
       tempSupplykind.value
     ); // 根據查詢條件過濾供方列表
   }
-  /*
-  // 應該不用寫進來這裡
-  const selectSupplier = async (supplier) => {
-    // 用戶選擇供方編碼後，將編碼放入供方編碼欄位
-    form.supplyno = supplier["header.supply.supplyno"];
-    form.supplyname = supplier["header.supply.supplyname"];
-    form.spkindname = supplier["header.supply.supplykind"]; // 設定收貨類別為供方類別
-    ckkindOptions.value = await utils.fetchCkkindOptions(
-      form.spkindname,
-      spkindnoOptions.value
-    ); // 取得對應的倉庫類別選項
-    form.ckkind = ""; // 倉庫類別預設為空
-    dialog.value = false; // 關閉小視窗
-  };
-  */
 
   return {
     dialog,

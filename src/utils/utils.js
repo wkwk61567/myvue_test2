@@ -1,6 +1,7 @@
 // utils.js
 import { API_BASE_URL } from "@/config";
 import axios from "axios";
+import { it } from "vitest";
 import * as XLSX from "xlsx";
 
 export function sleep(ms) {
@@ -44,16 +45,21 @@ export async function auditOrder(isAudit, params) {
   }
 }
 
-export function handleField(item, field) {
+export function handleField(
+  item,
+  field,
+  decimalPlaces = 4,
+  isSetNegativeToZero = true
+) {
   // 轉換成規範的數字
 
   let numericValue = parseFloat(item[field]) || 0; // 轉換成數字
 
-  if (numericValue < 0) {
+  if (isSetNegativeToZero && numericValue < 0) {
     numericValue = 0; // 如果小於0，則設為0
   }
 
-  numericValue = parseFloat(numericValue.toFixed(4)).toString(); // 四捨五入到小數點後4位 #BusinessLogic
+  numericValue = parseFloat(numericValue.toFixed(decimalPlaces)); // 四捨五入到小數點後指定位數 #BusinessLogic
 
   item[field] = numericValue; // 更新數值
 }
@@ -221,7 +227,8 @@ export function formatDateTimeFields (results, labels) {
   });
 };
 
-export function exportExcel (data, headers, name = "export") {
+export function exportExcel(data, headers, name = "export") {
+  console.log("exportExcel:", data, headers, name);
   // 將資料轉換為適合導出的格式
   const dataToExport = data.map((row) => {
     let newRow = {};

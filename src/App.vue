@@ -27,6 +27,9 @@
             <v-list-item to="/cljhdMaster">
               <v-list-item-title>{{ labels['submenu.NA.cljhd'].name }}</v-list-item-title>
             </v-list-item>
+            <v-list-item to="/clthdMaster">
+              <v-list-item-title>{{ labels['submenu.NA.clthd'].name }}</v-list-item-title>
+            </v-list-item>
           </v-list>
         </v-menu>
 

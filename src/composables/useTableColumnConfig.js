@@ -12,7 +12,10 @@ export function useTableColumnConfig(
   updateTable,
   setFieldRef
 ) {
-  const numberColumnsConfig = () => ({
+  const numberColumnsConfig = (
+    decimalPlaces = 4,
+    isSetNegativeToZero = true
+  ) => ({
     // 數字欄位的通用配置
     getProps: (item, key) => ({
       ref: setFieldRef(`field_${item["NA.cldhditm.id"]}_${key}`),
@@ -32,7 +35,7 @@ export function useTableColumnConfig(
       focus: (event) => handleFocus(item, key, event.target),
       blur: (event) => handleBlur(item, key, event.target),
       change: () => {
-        utils.handleField(item, key);
+        utils.handleField(item, key, decimalPlaces, isSetNegativeToZero);
         updateTable(item, key);
       },
     }),

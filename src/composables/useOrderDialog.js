@@ -1,14 +1,20 @@
-import { ref, reactive, nextTick } from "vue";
+import { ref, reactive } from "vue";
 import * as utils from "@/utils/utils.js";
 
-export function useOrderDialog(results, idCurrent) {
+export function useOrderDialog(selectRow = null) {
+  // 訂貨單的小視窗
+
   const isCallOrderDialogVisible = ref(false); // 調用訂單介面(CallOrderDialog)是否顯示
   const orderQuery = reactive({ danno: "", spno: "", spspec: "" }); // 用來存儲調用訂單介面(CallOrderDialog)的訂單查詢條件
   const orders = ref([]); // 用來存儲從API獲取的訂單資料 也就是調用訂單介面(CallOrderDialog)裡的訂單列表
   const orderFiltered = ref([]); // 用來存儲過濾後的訂單列表 顯示於調用訂單介面(CallOrderDialog)
 
-  async function openCallOrdersDialog(supplyno) {
+  async function openCallOrdersDialog(supplyno, item = null) {
     // 打開調用訂單介面(CallOrderDialog)
+
+    if (selectRow !== null) {
+      selectRow.value = item; // 直接點選表格中的...按鈕時，儲存選取的行
+    }
 
     // 每次調用訂單對話框打開時，需清空查詢欄位，否則會殘留前次輸入的內容
     orderQuery.danno = "";
@@ -41,7 +47,7 @@ export function useOrderDialog(results, idCurrent) {
         order["header.cldhditm.price"] = parseFloat(
           order["header.cldhditm.price"]
         );
-        order["header.sp.dz"] = parseFloat(order["header.sp.dz"]);
+        order["NA.sp.dz"] = parseFloat(order["NA.sp.dz"]);
         try {
           order["header.cldhditm.gdate"] =
             order["header.cldhditm.gdate"].date.split(" ")[0];
@@ -88,69 +94,11 @@ export function useOrderDialog(results, idCurrent) {
     console.log("orderFiltered:", orderFiltered.value);
   }
 
-  async function selectOrder(order, ddate, focusNextInvalidField) {
-    // 暫時儲存訂單到下方的表格
-    // order是調用訂單中雙擊選中的item
-
-    // 檢查交貨日期
-    if (!ddate) {
-      alert("收貨日期未設定");
-      return;
-    }
-    const gdate = new Date(order["header.cldhditm.gdate"]);
-    const earliestAllowedDate = new Date(gdate);
-    earliestAllowedDate.setDate(gdate.getDate() - 3);
-    if (new Date(ddate) < earliestAllowedDate) {
-      alert("交期未到, 只能提前3天交貨");
-      return;
-    }
-
-    idCurrent.value += 1;
-
-    // 根據在調用訂單對話框選擇的未結訂單，將相關資訊帶入材料QC一覽表單據頁面下方表格，供輸入暫收數量和暫收重量
-    let tempOrder = {};
-    tempOrder["header.cljhdmst.supplyno"] = order["header.cldhdmst.supplyno"];
-    tempOrder["header.cljhditm.id"] = idCurrent.value;
-    tempOrder["header.cljhditm.dhdno"] = order["header.cldhditm.danno"];
-    tempOrder["header.cljhditm.dhdid"] = order["header.cldhditm.dhdid"];
-    tempOrder["header.cljhditm.spno"] = order["header.cldhditm.spno"];
-    tempOrder["header.sp.spspec"] = order["header.sp.spspec"];
-    tempOrder["header.sp.spunit"] = order["header.sp.spunit"];
-    tempOrder["header.cljhditm.dhdpcs"] = order["header.cldhditm.dhdpcs"];
-    tempOrder["header.cljhditm.getpcs"] = order["header.cldhditm.getpcs"];
-    tempOrder["header.cljhditm.notpcs"] = order["header.NA.notpcs"];
-    tempOrder["header.cljhditm.jhpcs"] = 0;
-    tempOrder["header.cljhditm.jhkg"] = 0;
-    tempOrder["header.cljhditm.jhdz"] = NaN;
-    tempOrder["header.sp.dz"] = order["header.sp.dz"];
-    tempOrder["header.cljhditm.dzrate"] = NaN;
-    //實收良品數量 pcs
-    //實收良品重量 kg
-    //實收不良品數量 pcsth
-    tempOrder["header.cljhditm.payno"] = order["header.cldhditm.payno"];
-    tempOrder["header.cljhditm.price"] = order["header.cldhditm.price"];
-    tempOrder["header.cljhditm.pay"] = 0;
-    //品檢結果 qcnote
-    tempOrder["header.cljhditm.gdate"] = order["header.cldhditm.gdate"];
-    tempOrder.isEditCljhditmClicked = true;
-    tempOrder.spkindno = order.spkindno;
-    tempOrder.clkind = order.clkind;
-    console.log("暫存：", tempOrder);
-    results.value.push(tempOrder);
-
-    isCallOrderDialogVisible.value = false; // 關閉調用訂單介面
-
-    // 等待DOM更新後，將焦點設置到新添加的行
-    await nextTick();
-    focusNextInvalidField(tempOrder);
-  }
-
   return {
     isCallOrderDialogVisible,
     orderQuery,
     orderFiltered,
     openCallOrdersDialog,
     handleInputOrderQuery,
-    selectOrder,
   };
 }

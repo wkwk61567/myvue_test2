@@ -10,7 +10,7 @@
       :isDeleteOrderDisabled="isDeleteOrderDisabled"
       :toggleAudit="toggleAudit"
       :isToggleAuditDisabled="isToggleAuditDisabled"
-      :exportExcel="() => utils.exportExcel(results.value, headers.value, '材料采購單明細', '材料采購單明細')"
+      :exportExcel="() => utils.exportExcel(results, headers, '材料采購單明細', '材料采購單明細')"
       :isExportExcelDisabled="isExportExcelDisabled"
       :printOrder="() => utils.printCldhdOrder(form.danno)"
       :isPrintOrderDisabled="isPrintOrderDisabled || form.audit === null || form.audit === ''"
@@ -52,6 +52,7 @@
                   v-model="form[field.column]"
                   :label="field.name"
                   :readonly="
+                    field.isReadonly ? field.isReadonly ():
                     utils.isReadonly(
                       mode,
                       field.inputType,
@@ -77,6 +78,7 @@
                   v-model="form[field.column]"
                   :label="field.name"
                   :readonly="
+                    field.isReadonly ? field.isReadonly ():
                     utils.isReadonly(
                       mode,
                       field.inputType,
@@ -348,7 +350,7 @@ const {
   filteredSuppliers,
   openDialog,
   handleInputSupplyQueryAndTempSupplykind,
-} = useSupplyDialog(); // 選擇供方的視窗的狀態和方法
+} = useSupplyDialog(); // 供方查詢介面的狀態和方法
 
 const selectSupplier = async (supplier) => {
   // 選取供方
@@ -379,7 +381,7 @@ const selectSupplier = async (supplier) => {
   openSpDialog(null); // 打開材料查詢介面
 };
 
-let selecrRow = null; // 用來存儲選取的行
+let selectRow = null; // 用來存儲選取的行
 
 // 材料的小視窗的狀態和方法
 const isSpDialogVisible = ref(false); // 材料的小視窗的顯示狀態
@@ -395,7 +397,7 @@ const spFiltered = ref([]); // 過濾過的材料查詢結果
 
 const  openSpDialog = async (item)  => {
   // 打開材料查詢介面
-  selecrRow = item; // 直接點選表格中的材料編碼時，儲存選取的行
+  selectRow = item; // 直接點選表格中的材料編碼時，儲存選取的行
 
   // 每次材料查詢介面打開時，需清空查詢欄位，否則會殘留前次輸入的內容
   spQuery.spno = "";
@@ -493,27 +495,27 @@ const selectSp = async (item) => {
   } else {
     tempItem["header.cldhditm.price"] = item.price;
   }
-  if (selecrRow === null) {
+  if (selectRow === null) {
     // 新增一行
     tempItem["NA.cldhditm.id"] = ++idCurrent.value; // 新增一行的 id
     tempItem["header.cldhditm.danid"] = `${form.danno}_${idCurrent.value}`; // 訂單號碼
     results.value.push(tempItem); // 新增一行
   } else {
     // 重選材料編碼，並替換相關的欄位
-    const selecrRow_old = { ...selecrRow }; // // 儲存原先的行
+    const selectRow_old = { ...selectRow }; // // 儲存原先的行
     Object.keys(tempItem).forEach(key => {
-      selecrRow[key] = tempItem[key];
+      selectRow[key] = tempItem[key];
     });
-    console.log("替代的行：", selecrRow);
+    console.log("替代的行：", selectRow);
 
     // 如果是編輯模式，立刻詢問使用者是否更新到資料庫，否則取消更新
-    if (mode.value === "edit" && selecrRow["NA.cldhditm.id"] <= idLastInDB.value) {
-      if (confirm(`您確定要更新${labels.value["header.cldhditm.spno"].name}為${selecrRow["header.cldhditm.spno"]}嗎?`)) {
+    if (mode.value === "edit" && selectRow["NA.cldhditm.id"] <= idLastInDB.value) {
+      if (confirm(`您確定要更新${labels.value["header.cldhditm.spno"].name}為${selectRow["header.cldhditm.spno"]}嗎?`)) {
         const paramsSpno = {
           danno: form.danno,
-          id: selecrRow["NA.cldhditm.id"],
+          id: selectRow["NA.cldhditm.id"],
           column: "spno",
-          value: selecrRow["header.cldhditm.spno"],
+          value: selectRow["header.cldhditm.spno"],
         };
         const dataSpno = await utils.fetchData("cldhditmUpdate.php", paramsSpno); // 透過api更新資料
         console.log("更新結果dataSpno:", dataSpno);
@@ -528,14 +530,14 @@ const selectSp = async (item) => {
             (item["header.cldhditm.pcs"] * item["header.cldhditm.price"]).toFixed(2)
           ); // 計算金額
         }
-        if (selecrRow["header.cldhditm.price"] === "") {
+        if (selectRow["header.cldhditm.price"] === "") {
           alert(`${labels.value["header.cldhditm.spno"].name}已更新, 請手動選擇價格更新`); // 漏洞: 如果使用者不選擇價格, 可能會導致資料庫中仍然是原先的價格
         } else {
           const paramsPrice = {
             danno: form.danno,
-            id: selecrRow["NA.cldhditm.id"],
+            id: selectRow["NA.cldhditm.id"],
             column: "price",
-            value: selecrRow["header.cldhditm.price"],
+            value: selectRow["header.cldhditm.price"],
           };
           const dataPrice = await utils.fetchData("cldhditmUpdate.php", paramsPrice); // 透過api更新資料
           console.log("更新結果dataPrice:", dataPrice);
@@ -544,8 +546,8 @@ const selectSp = async (item) => {
         alert("更新完成");
       } else {
         // 使用者按取消, 恢復原先的行
-        Object.keys(selecrRow_old).forEach(key => {
-          selecrRow[key] = selecrRow_old[key];
+        Object.keys(selectRow_old).forEach(key => {
+          selectRow[key] = selectRow_old[key];
         });
       }
     }
@@ -568,7 +570,7 @@ const clprice = ref([]); // 輔料價格查詢結果
 const openClpriceDialog = async (item) => {
   // 打開輔料價格查詢介面
   // 網頁版只有原材料才可以選價格
-  selecrRow = item; // 儲存選取的行
+  selectRow = item; // 儲存選取的行
   if (!form.supplyno) {
     console.error("供方編碼為空");
   } else {
@@ -590,9 +592,9 @@ const openClpriceDialog = async (item) => {
 const selectClprice = (item) => {
   // 選取輔料價格
   console.log("選取的輔料價格：", item);
-  selecrRow["header.cldhditm.price"] = item["header.clprice.price"]; // 單價
-  selecrRow["header.cldhditm.pay"] = parseFloat(
-    (selecrRow["header.cldhditm.pcs"] * selecrRow["header.cldhditm.price"]).toFixed(2)
+  selectRow["header.cldhditm.price"] = item["header.clprice.price"]; // 單價
+  selectRow["header.cldhditm.pay"] = parseFloat(
+    (selectRow["header.cldhditm.pcs"] * selectRow["header.cldhditm.price"]).toFixed(2)
   ); // 計算金額
   isClpriceDialogVisible.value = false; // 關閉輔料價格查詢視窗
 };
@@ -612,7 +614,7 @@ const priceType = ref(""); // 價格類型
 
 const openGclpriceDialog = async (item) => {
   // 打開原材料價格查詢介面
-  selecrRow = item; // 儲存選取的行
+  selectRow = item; // 儲存選取的行
   if (!form.supplyno) {
     console.error("供方編碼為空");
   } else {
@@ -642,14 +644,14 @@ const selectGclprice = async (item) => {
   console.log("選取的原材料價格：", item);
 
   const key = "header.cldhditm.price"; // 要更新的欄位
-  const priceOld = selecrRow[key]; // 原先的價格
+  const priceOld = selectRow[key]; // 原先的價格
 
   // 填入單價欄位，如果是卷料，則使用 pricekg，否則使用 price #BusinessLogic
-  if (selecrRow.clkind === '卷料') {
+  if (selectRow.clkind === '卷料') {
     const priceTypeName = "header.gclprice.pricekg" + priceType.value;
     console.log("priceTypeName:", priceTypeName);
     if (item[priceTypeName] > 0) {
-      selecrRow[key] = item[priceTypeName]; 
+      selectRow[key] = item[priceTypeName]; 
     } else {
       alert("價格為0");
       return;
@@ -658,7 +660,7 @@ const selectGclprice = async (item) => {
     const priceTypeName = "header.gclprice.price" + priceType.value;
     console.log("priceTypeName:", priceTypeName);
     if (item[priceTypeName] > 0) {
-      selecrRow[key] = item[priceTypeName];
+      selectRow[key] = item[priceTypeName];
     } else {
       alert("價格為0");
       return;
@@ -666,29 +668,29 @@ const selectGclprice = async (item) => {
   }
   
   // 如果是編輯模式，立刻詢問使用者是否更新到資料庫，否則取消更新
-  if (mode.value === "edit" && selecrRow["NA.cldhditm.id"] <= idLastInDB.value) {
-    if (confirm(`您確定要更新${labels.value[key].name}為${selecrRow[key]}嗎?`)){
+  if (mode.value === "edit" && selectRow["NA.cldhditm.id"] <= idLastInDB.value) {
+    if (confirm(`您確定要更新${labels.value[key].name}為${selectRow[key]}嗎?`)){
       const params = {
         danno: form.danno,
-        id: selecrRow["NA.cldhditm.id"],
+        id: selectRow["NA.cldhditm.id"],
         column: labels.value[key].column,
-        value: selecrRow[key],
+        value: selectRow[key],
       };
       const data = await utils.fetchData("cldhditmUpdate.php", params); // 透過api更新資料
       console.log("更新結果:", data);
       alert("更新完成");
 
       if(spkindname.value === "原材料"){
-        selecrRow["header.cldhditm.pay"] = parseFloat(
-          (selecrRow["header.cldhditm.kg"] * selecrRow[key]).toFixed(2)
+        selectRow["header.cldhditm.pay"] = parseFloat(
+          (selectRow["header.cldhditm.kg"] * selectRow[key]).toFixed(2)
         ); // 計算金額
       } else {
-        selecrRow["header.cldhditm.pay"] = parseFloat(
-          (selecrRow["header.cldhditm.pcs"] * selecrRow[key]).toFixed(2)
+        selectRow["header.cldhditm.pay"] = parseFloat(
+          (selectRow["header.cldhditm.pcs"] * selectRow[key]).toFixed(2)
         ); // 計算金額
       }
     } else {
-      selecrRow[key] = priceOld; // 如果使用者按取消, 恢復原先的價格
+      selectRow[key] = priceOld; // 如果使用者按取消, 恢復原先的價格
       return; // 如果使用者按取消, 取消更新
     }
   }
@@ -895,7 +897,7 @@ const discard = async () => {
 
   if (confirmMessage && !confirm(confirmMessage)) return; // 如果使用者按取消, 不進行放棄
 
-  if (isNoRowsInDB) {
+  if (mode.value === "edit" && isNoRowsInDB) {
     const params = {
         danno: form.danno,
         target: 'mst',
@@ -1031,7 +1033,7 @@ const deleteRow = async (item) => {
 
     } 
   } else {
-    // 刪除調用訂單新增的row
+    // 刪除新增的row
     const index = results.value.findIndex(
       (result) => result["NA.cldhditm.id"] === item["NA.cldhditm.id"]
     );
@@ -1235,7 +1237,7 @@ const {
   numberColumnsConfig,
   textColumnsConfig,
   dateColumnsConfig,
-} = useTableColumnConfig(mode, labels, isFieldValid, getInvalidGroupNames, handleFocus, handleBlur, isFieldDisabled, isFocusMechanismActive, updateTable, setFieldRef);
+} = useTableColumnConfig(mode, labels, isFieldValid, getInvalidGroupNames, handleFocus, handleBlur, isFieldDisabled, isFocusMechanismActive, updateTable, setFieldRef); // 通用的表格欄位設定
 
 // 表格中需要特殊處理的欄位
 const specialTableColumns = {

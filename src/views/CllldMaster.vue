@@ -12,7 +12,7 @@
       :isDeleteOrderDisabled="isDeleteOrderDisabled"
       :toggleAudit="toggleAudit"
       :isToggleAuditDisabled="isToggleAuditDisabled"
-      :exportExcel="() => utils.exportExcel(results.value, headers.value, '材料發料單單據', '材料發料單單據')"
+      :exportExcel="() => utils.exportExcel(results, headers, '材料發料單單據', '材料發料單單據')"
       :isExportExcelDisabled="isExportExcelDisabled"
     />
     <!-- form區塊 -->
@@ -242,21 +242,23 @@ const deleteOrder = async () => {
     }); //透過api獲取該筆單據的明細資料
     console.log("明細資料:", itmData["table"]);
     if (confirm("您確定要刪除整張單據嗎?")) {
-      for (let item of itmData["table"]) {
-        const params = {
+      if (itmData["table"].length > 0) {
+        for (let item of itmData["table"]) {
+          const params = {
+            danno: selectedRow.value["header.cllldmst.danno"],
+            id: item["header.clllditm.id"],
+            target: 'all',
+          };
+          const data = await utils.fetchData("cllldDelete.php", params); // 透過api刪除資料
+          console.log("刪除資料結果：", data);
+        }
+      } else {
+        const data = await utils.fetchData("cllldDelete.php", {
           danno: selectedRow.value["header.cllldmst.danno"],
-          kind: item["header.clllditm.kind"],
-          id: item["header.clllditm.id"],
-          target: 'itm',
-        };
-        const data = await utils.fetchData("cllldDelete.php", params); // 透過api刪除資料
+          target: 'mst',
+        }); // 刪除mst(避免空的單據時，for不會被執行的狀況)
         console.log("刪除資料結果：", data);
       }
-      const data = await utils.fetchData("cldhdDelete.php",  {
-          danno: selectedRow.value["header.cldhdmst.danno"],
-          target: 'mst',
-      }); // 刪除mst
-      console.log("刪除資料結果：", data);
       alert("刪除完成");
     }
   } else {

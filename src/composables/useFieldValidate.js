@@ -52,6 +52,15 @@ export function useFieldValidate(results, form, formRows, fieldRefs, labels) {
         !isNaN(parseFloat(fieldValue)) &&
         isFinite(fieldValue)
       );
+     } else if (labels[field].validationRule === "nonZeroNumber") {
+      // 如果是非0數字，則檢查是否為有效數字且不為0
+      return (
+        fieldValue !== undefined &&
+        fieldValue !== null &&
+        !isNaN(parseFloat(fieldValue)) &&
+        isFinite(fieldValue) &&
+        parseFloat(fieldValue) !== 0
+      );
     } else if (labels[field].validationRule === "positive") {
       // 如果是正數，則檢查是否為有效正數
       return (
