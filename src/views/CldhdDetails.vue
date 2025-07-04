@@ -293,7 +293,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onBeforeUnmount, inject, watch, nextTick } from "vue";
 import { useRouter } from "vue-router";
-import { SERIAL_PREFIX, INPUT_COLORS, HOVER_COLOR } from "@/config.js";
+import { DADNO_PREFIX, INPUT_COLORS, HOVER_COLOR } from "@/config.js";
 import * as utils from "@/utils/utils.js";
 import ButtonsCRUDP from "@/components/ButtonsCRUDP.vue";
 import ButtonsSaveDiscard from "@/components/ButtonsSaveDiscard.vue";
@@ -366,7 +366,7 @@ const selectSupplier = async (supplier) => {
 
   //  取得流水號(danno)
   const params = {
-    prefix: `${SERIAL_PREFIX}${form.supplyno}`,
+    prefix: `${DADNO_PREFIX}${form.supplyno}`,
     table: tableNameMST,
   };
   const data = await utils.fetchData(
@@ -839,7 +839,7 @@ const save = async () => {
     const params = {
       supplyno: form.supplyno,
       ddate: form.ddate,
-      demo: form.demo,
+      demo: form.demo + "_網頁版",
       itm: itm,
     };
     const data = await utils.fetchData("cldhdDetailsAdd.php", params); // 透過api新增資料

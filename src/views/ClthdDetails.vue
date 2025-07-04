@@ -338,7 +338,7 @@ import {
   nextTick
 } from "vue";
 import { useRouter } from "vue-router";
-import { SERIAL_PREFIX, INPUT_COLORS, HOVER_COLOR } from "@/config.js";
+import { DADNO_PREFIX, INPUT_COLORS, HOVER_COLOR } from "@/config.js";
 import * as utils from "@/utils/utils.js";
 import ButtonsCRUDP from "@/components/ButtonsCRUDP.vue";
 import ButtonsSaveDiscard from "@/components/ButtonsSaveDiscard.vue";
@@ -662,7 +662,7 @@ const setMode = async (newMode) => {
 
     //  取得流水號(danno)
     const params = {
-      prefix: `${SERIAL_PREFIX}YB`,
+      prefix: `${DADNO_PREFIX}YB`,
       table: tableNameMST,
     };
     const dannoData = await utils.fetchData("getSerialNumber.php", params);
@@ -800,7 +800,7 @@ const save = async () => {
       dannobase: form.dannobase, 
       ddate: form.ddate, 
       supplyno: form.supplyno, 
-      demo: form.demo, 
+      demo: form.demo + "_網頁版", 
       ckkind: form.ckkind, 
       itm: itm,
     };

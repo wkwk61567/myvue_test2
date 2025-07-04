@@ -13,6 +13,17 @@
       :makeCldhd="makeCldhd"
       :isMakeCldhdDisabled="isMakeCldhdDisabled"
     />
+    <!-- 連結(信封)和功能按鈕-->
+     <!-- 
+    <v-row class="d-flex justify-space-between align-center mb-2">
+      <v-col cols="auto">
+        <ButtonsLeft />
+      </v-col>
+      <v-col cols="auto" class="text-right">
+        <ButtonsRight />
+      </v-col>
+    </v-row>
+    -->
     <!-- form區塊 -->
     <v-card>
       <v-card-title>資料庫查詢</v-card-title>
@@ -191,6 +202,8 @@ import { ref, reactive, computed, onMounted, inject } from "vue";
 import { HOVER_COLOR, SELECTED_COLOR } from "@/config.js";
 import * as utils from "@/utils/utils.js";
 import ButtonsCRUDP from "@/components/ButtonsCRUDP.vue";
+import ButtonsLeft from "@/components/ButtonsLeft.vue";
+import ButtonsRight from "@/components/ButtonsRight.vue";
 import SupplyDialog from "@/components/SupplyDialog.vue";
 import SpDialog from "@/components/SpDialog.vue";
 import { useI18nHeadersLabels } from "@/composables/useI18nHeadersLabels.js";
@@ -432,7 +445,7 @@ const importExcel = async (event) => {
       spno: row["材料編碼"],
       pcs: row["采購量"],
       gdate: row["交貨日期"],
-      note: row["備注"],
+      note: row["備注"] + "_網頁版",
     };
     const data = await utils.fetchData("cldhddrAdd.php", params); // 透過api導入資料
     console.log("導入結果：", data);
