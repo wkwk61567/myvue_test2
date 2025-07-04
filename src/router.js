@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import OrdersTable from "@/views/OrdersTable.vue"; // 訂單管理頁面
+import CldhdImport from "@/views/CldhdImport.vue"; // 采購訂單導入頁面
 import CldhdMaster from "@/views/CldhdMaster.vue"; // 材料采購單單據頁面
 import CldhdDetails from "@/views/CldhdDetails.vue"; // 材料采購單明細頁面
 import CljhdMaster from "@/views/CljhdMaster.vue"; // 材料QC一覽表單據頁面
@@ -33,6 +34,17 @@ const routes = [
     component: Login,
     meta: { requiresAuth: false, titleKey: "login" },
   }, // 登入頁面
+  {
+    path: "/cldhdImport",
+    component: CldhdImport,
+    props: true,
+    meta: {
+      requiresAuth: true,
+      requiredFormno: "cldhddr",
+      requiredFlag: "findflag",
+      titleKey: "cldhdImport",
+    },
+  },
   {
     path: "/cldhdMaster",
     component: CldhdMaster,
@@ -136,7 +148,8 @@ const getTitleFromDictionary = (titleKey) => {
 };
 
 const router = createRouter({
-  history: createWebHistory(),
+  //history: createWebHistory(),
+  history: createWebHistory("/vue/"), //上線的時候這裡要改成專案資料夾的名稱
   routes,
 });
 
@@ -158,7 +171,6 @@ router.beforeEach(async (to, from, next) => {
   const requiredFormno = to.meta.requiredFormno;
 
   if (authRequired) {
-    console.log("API_BASE_URL", API_BASE_URL);
     console.log(`${API_BASE_URL}/api/checkAuthenticated.php`, {
       flag: requiredFlag,
       formno: requiredFormno,

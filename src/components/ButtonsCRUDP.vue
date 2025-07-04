@@ -52,6 +52,16 @@
             >{{labels['button.NA.toggleAudit'].name}}</v-btn
           >
         </v-col>
+        <!-- 導入 -->
+        <v-col cols="auto" class="text-right">
+          <v-btn
+            color="primary"
+            @click="fileInput.click()"
+            height="56px"
+            :disabled="isImportExcelDisabled"
+            >{{labels['button.NA.importExcel'].name}}</v-btn
+          >
+        </v-col>
         <!-- 導出 -->
         <v-col cols="auto" class="text-right">
           <v-btn
@@ -72,13 +82,31 @@
             >{{labels['button.NA.printOrder'].name}}</v-btn
           >
         </v-col>
+        <!-- 生成采購單 -->
+        <v-col cols="auto" class="text-right">
+          <v-btn
+            color="primary"
+            @click="makeCldhd"
+            height="56px"
+            :disabled="isMakeCldhdDisabled"
+            >{{labels['button.NA.makeCldhd'].name}}</v-btn
+          >
+        </v-col>
       </v-row>
+      <!-- 用於匯入 Excel 的檔案輸入框(不可見) -->
+      <input
+        ref="fileInput"
+        type="file"
+        accept=".xlsx,.xls"
+        style="display: none"
+        @change="importExcel"
+      />
     </div>
   </v-card>
 </template>
 
 <script setup>
-import { inject } from 'vue';
+import { ref, inject } from 'vue';
 import { useI18nHeadersLabels } from "@/composables/useI18nHeadersLabels.js";
 
 // 接收selectedLanguage 作為目前顯示的語言
@@ -105,11 +133,19 @@ const props = defineProps({
     type: Function,
     required: false,
   },
+  importExcel: {
+    type: Function,
+    required: false,
+  },
   exportExcel: {
     type: Function,
     required: false,
   },
   printOrder: {
+    type: Function,
+    required: false,
+  },
+  makeCldhd: {
     type: Function,
     required: false,
   },
@@ -139,6 +175,11 @@ const props = defineProps({
     type: Boolean,
     default: true,
   },
+  // 是否禁用"導入"按鈕
+  isImportExcelDisabled: {
+    type: Boolean,
+    default: true,
+  },
   // 是否禁用"導出"按鈕
   isExportExcelDisabled: {
     type: Boolean,
@@ -146,6 +187,11 @@ const props = defineProps({
   },
   // 是否禁用"打印"按鈕
   isPrintOrderDisabled: {
+    type: Boolean,
+    default: true,
+  },
+  // 是否禁用"生成采購單"按鈕
+  isMakeCldhdDisabled: {
     type: Boolean,
     default: true,
   },
@@ -160,6 +206,7 @@ const props = defineProps({
 const fileName = import.meta.url.split("/").pop().split("%")[0];
 const { labels } = useI18nHeadersLabels(selectedLanguage, fileName);
 
+const fileInput = ref(null); // 用於匯入 Excel 的檔案輸入框
 </script>
 
 <style scoped>

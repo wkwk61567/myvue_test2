@@ -216,9 +216,7 @@
               <template v-for="header in headers" :key="header.key">
                 <td
                   v-if="specialTableColumns[header.key]"
-                  :style="{
-                    backgroundColor: INPUT_COLORS[labels[header.key].inputType],
-                  }"
+                  :style="tableCellStyles[`${header.key}_td`]"
                 >
                   <component
                     :is="labels[header.key].componentType === 'checkbox'
@@ -254,10 +252,10 @@
               >
                 {{ utils.calculateColumnSum(results, header.key) }}
               </td>
-              <td v-else :style="
-                  (tableCellStyles[`${header.key}_td`],
-                  { backgroundColor: INPUT_COLORS['fixed'] })
-                ">
+              <td v-else :style="{
+                  ...tableCellStyles[`${header.key}_td`],
+                  backgroundColor: INPUT_COLORS['fixed']
+                }">
                 <!-- 不需要加總的欄位保持空白 -->
               </td>
             </template>
@@ -295,7 +293,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onBeforeUnmount, inject, watch, nextTick } from "vue";
 import { useRouter } from "vue-router";
-import { INPUT_COLORS, HOVER_COLOR } from "@/config.js";
+import { SERIAL_PREFIX, INPUT_COLORS, HOVER_COLOR } from "@/config.js";
 import * as utils from "@/utils/utils.js";
 import ButtonsCRUDP from "@/components/ButtonsCRUDP.vue";
 import ButtonsSaveDiscard from "@/components/ButtonsSaveDiscard.vue";
@@ -361,14 +359,14 @@ const selectSupplier = async (supplier) => {
   if (spkindname.value === null || spkindname.value === "") {
     spkindno.value = ""; // 沒有對應的類別編碼
   } else {
-    spkindno.value =  spkindnoOptions.value.find(
+    spkindno.value = spkindnoOptions.value.find(
       (item) => item.spkindname === spkindname.value
     ).spkindno; // 類別編碼
   }
 
   //  取得流水號(danno)
   const params = {
-    prefix: `D_${form.supplyno}`,
+    prefix: `${SERIAL_PREFIX}${form.supplyno}`,
     table: tableNameMST,
   };
   const data = await utils.fetchData(
@@ -395,7 +393,7 @@ const spQuery = reactive({
 const sp = ref([]); // 材料查詢結果
 const spFiltered = ref([]); // 過濾過的材料查詢結果
 
-const  openSpDialog = async (item)  => {
+const openSpDialog = async (item) => {
   // 打開材料查詢介面
   selectRow = item; // 直接點選表格中的材料編碼時，儲存選取的行
 
@@ -418,6 +416,7 @@ const  openSpDialog = async (item)  => {
     console.log("材料查詢結果：", sp.value);
   }
   spFiltered.value = sp.value; // 初始化材料列表
+  handleInputSpQuery(); // 處理材料查詢，過濾材料列表
   isSpDialogVisible.value = true; // 打開材料查詢介面
 }
 const handleInputSpQuery = () => {
@@ -811,7 +810,7 @@ const initializeData = async () => {
   form.ddate = form.ddate.date.split(" ")[0]; // 將日期切割成 YYYY-MM-DD
 
   spkindname.value = data["form"][0].supplykind; // 在網頁版, spkindname與供方類別對應
-  spkindno.value =  spkindnoOptions.value.find(
+  spkindno.value = spkindnoOptions.value.find(
       (item) => item.spkindname === spkindname.value
     ).spkindno; // 類別編碼
 
@@ -879,7 +878,7 @@ const discard = async () => {
 
   let confirmMessage = "";
   const isHasUnsavedRows = results.value.some(item => item["NA.cldhditm.id"] > idLastInDB.value); // 是否有未儲存的行
-  const isNoRowsInDB  = orderInDBNum.value === 0; // 是否沒有行在資料庫中
+  const isNoRowsInDB = orderInDBNum.value === 0; // 是否沒有行在資料庫中
 
   if (mode.value === "add") {
     if (isHasUnsavedRows) {
@@ -925,7 +924,7 @@ const updateForm = async (field) => {
     // 更新資料庫
 
     // 檢察欄位是否有效
-    if (!isFieldValid(form[field.column], field.key)) {
+    if (!isFieldValid(form[field.column], field.key, form)) {
       return;
     }
 
@@ -978,7 +977,7 @@ const updateTable = async (item, key) => {
   }
 
   // 檢察欄位是否有效
-  if (!isFieldValid(item[key], key)) {
+  if (!isFieldValid(item[key], key, item)) {
     return;
   }
 
@@ -1231,13 +1230,13 @@ const {
   isFocusMechanismActive,
   isErrorVisible ,
   isFormComplete,
-} = useFieldValidate(results, form, formRows.value, fieldRefs, labels.value);
+} = useFieldValidate(results, form, formRows.value, fieldRefs, labels.value, "NA.cldhditm.id");
 
 const {
   numberColumnsConfig,
   textColumnsConfig,
   dateColumnsConfig,
-} = useTableColumnConfig(mode, labels, isFieldValid, getInvalidGroupNames, handleFocus, handleBlur, isFieldDisabled, isFocusMechanismActive, updateTable, setFieldRef); // 通用的表格欄位設定
+} = useTableColumnConfig(mode, labels, isFieldValid, getInvalidGroupNames, handleFocus, handleBlur, isFieldDisabled, isFocusMechanismActive, updateTable, setFieldRef, "NA.cldhditm.id"); // 通用的表格欄位設定
 
 // 表格中需要特殊處理的欄位
 const specialTableColumns = {
@@ -1256,7 +1255,7 @@ const specialTableColumns = {
     getProps: (item, key) => ({
       readonly: true,
       'append-inner-icon': (mode.value !== 'view' && !isFieldDisabled(item, key) && spkindno.value === 3) ? 'mdi-dots-horizontal-circle' : null,
-      error: !isFieldValid(item[key], key),
+      error: !isFieldValid(item[key], key, item),
       'error-messages': isFocusMechanismActive.value && !isFieldDisabled(item, key) ? '必填' : null,
       ref: setFieldRef(`field_${item['NA.cldhditm.id']}_${key}`),
       class: labels.value[key]?.dataType === 'number' ? 'number-field' : ''

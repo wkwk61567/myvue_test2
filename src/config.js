@@ -1,5 +1,7 @@
 import { loadDictionary } from "@/i18n/loadDictionary.js"; // CSV 解析檔案
 
+export const SERIAL_PREFIX = "D_"; // "D_"這個前綴只有東莞有
+
 const dictionary = {
   // 讀取 CSV 字典
   fullDictionary: null,

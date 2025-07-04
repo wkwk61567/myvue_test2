@@ -152,10 +152,11 @@
           @update:orderQuery[danno]="orderQuery.danno = $event"
           @update:orderQuery[spno]="orderQuery.spno = $event"
           @update:orderQuery[spspec]="orderQuery.spspec = $event"
+          @update:orderQuery[status]="orderQuery.status = $event"
           :orderFiltered="orderFiltered"
           @handleInputOrderQuery="handleInputOrderQuery"
           @selectOrder="
-            (item) => selectOrder(item, form.ddate, focusNextInvalidField)
+            (item) => selectOrder(item)
           "
         ></CallOrderDialog>
 
@@ -337,7 +338,7 @@ import {
   nextTick
 } from "vue";
 import { useRouter } from "vue-router";
-import { INPUT_COLORS, HOVER_COLOR } from "@/config.js";
+import { SERIAL_PREFIX, INPUT_COLORS, HOVER_COLOR } from "@/config.js";
 import * as utils from "@/utils/utils.js";
 import ButtonsCRUDP from "@/components/ButtonsCRUDP.vue";
 import ButtonsSaveDiscard from "@/components/ButtonsSaveDiscard.vue";
@@ -486,8 +487,13 @@ const selectOrder = async (item) => {
   tempItem.clkind = item.clkind;
 
   if (selectRow.value === null || mode.value === "edit") {
-    results.value.push(tempItem); // 新增一行
     // 會造成出現沒有填寫完表格就可以直接點擊...按鈕新增一行的情況, 這樣應該不太好?
+    results.value.push(tempItem); // 新增一行
+    isCallOrderDialogVisible.value = false; // 關閉調用訂單介面
+    
+    await nextTick(); 
+    focusNextInvalidField(tempItem); // 等待DOM更新後，將焦點設置到新添加的行
+    selectRow.value = null; // 清除選取的行
   } else {
     // 如果是直接點選表格中的材料編碼，則更新該行
     // 改變材料編碼會影響多個欄位, 且使用者必須重新填寫實收數, 但是編輯模式時一次只保存一個欄位, 如果允許在編輯模式修改材料編碼, 會與現在的邏輯不符合
@@ -495,14 +501,12 @@ const selectOrder = async (item) => {
     idCurrent.value--; // 恢復idCurrent的值
     console.log("更新選取的行：", selectRow.value);
     Object.assign(selectRow.value, tempItem); // 更新選取的行
-    selectRow.value = null;
+    isCallOrderDialogVisible.value = false; // 關閉調用訂單介面
+
+    await nextTick(); 
+    focusNextInvalidField(selectRow.value); // 等待DOM更新後，將焦點設置到更新的行
+    selectRow.value = null; // 清除選取的行
   }
-
-  isCallOrderDialogVisible.value = false; // 關閉調用訂單介面
-
-  // 等待DOM更新後，將焦點設置到新添加的行
-  await nextTick();
-  focusNextInvalidField(tempItem);
 }
 
 // 材料的小視窗的狀態和方法, 應該可以放到composables?
@@ -516,7 +520,7 @@ const spQuery = reactive({
 }); // 材料查詢條件
 const sp = ref([]); // 材料查詢結果
 const spFiltered = ref([]); // 過濾過的材料查詢結果
-const openSpDialog = async (item = null)  => {
+const openSpDialog = async (item = null) => {
   // 打開材料查詢介面
   selectRow.value = item; // 直接點選表格中的材料編碼時，儲存選取的行
 
@@ -598,7 +602,7 @@ const selectSp = async (item) => {
   tempItem["header.cljhditm.kcpcs"] = item["NA.sp." + kcpcsMap[form.ckkind]]; // 根據倉庫類別，取得對應的庫存數量
   tempItem["header.cljhditm.pcs"] = 0;
   tempItem["header.cljhditm.kg"] = 0;
-  tempItem["header.cljhditm.payno"] = "";
+  tempItem["header.cljhditm.payno"] = item["NA.sp.payno"];
   tempItem["header.cljhditm.price"] = 0;
   tempItem["header.cljhditm.pay"] = 0;
   tempItem["NA.sp.dz"] = item["NA.sp.dz"];
@@ -608,6 +612,10 @@ const selectSp = async (item) => {
 
   if (selectRow.value === null || mode.value === "edit") {
     results.value.push(tempItem); // 新增一行
+    isSpDialogVisible.value = false; // 關閉材料查詢視窗
+
+    await nextTick(); 
+    focusNextInvalidField(tempItem); // 等待DOM更新後，將焦點設置到新添加的行
   } else {
     // 如果是直接點選表格中的材料編碼，則更新該行
     // 改變材料編碼會影響多個欄位, 且使用者必須重新填寫實收數, 但是編輯模式時一次只保存一個欄位, 如果允許在編輯模式修改材料編碼, 會與現在的邏輯不符合
@@ -617,16 +625,31 @@ const selectSp = async (item) => {
     idCurrent.value--; // 恢復idCurrent的值
     console.log("更新選取的行：", selectRow.value);
     Object.assign(selectRow.value, tempItem); // 更新選取的行
-    selectRow.value = null;
+    isSpDialogVisible.value = false; // 關閉材料查詢視窗
+
+    await nextTick(); 
+    focusNextInvalidField(selectRow.value); // 等待DOM更新後，將焦點設置到更新的行
+    selectRow.value = null; // 清除選取的行
   }
-  
-  isSpDialogVisible.value = false; // 關閉材料查詢視窗
-  // 此頁面沒有需要聚焦的必填欄位
-  //await nextTick(); // 等待DOM更新後，將焦點設置到新添加的行
-  //focusNextInvalidField(tempItem); // 將焦點移到下一個未填寫的欄位
 };
 
 const orderInDBNum = ref(0); // 原本的行數，用來判斷是不是只剩一個row，是的話會在刪除此row後刪除整張收貨單
+
+const convertItemValues = (item, toNegative = true) => {
+  // 將指定欄位的數值轉換為正數或負數
+  const keys = [
+    "header.cljhditm.pcs",
+    "header.cljhditm.kg",
+    "header.cljhditm.pay"
+  ];
+  keys.forEach(key => {
+    if (typeof item[key] === "number") {
+      item[key] = toNegative
+        ? -Math.abs(item[key])
+        : Math.abs(item[key]);
+    }
+  });
+};
 
 const mode = ref("view"); // 當前模式，默認為查看模式
 const setMode = async (newMode) => {
@@ -639,7 +662,7 @@ const setMode = async (newMode) => {
 
     //  取得流水號(danno)
     const params = {
-      prefix: "D_YB",
+      prefix: `${SERIAL_PREFIX}YB`,
       table: tableNameMST,
     };
     const dannoData = await utils.fetchData("getSerialNumber.php", params);
@@ -711,6 +734,10 @@ const initializeData = async () => {
 
   // 接收查詢結果
   results.value = data["table"];
+  
+  results.value.forEach((item) => {
+    convertItemValues(item, false); // 轉換成正數 #BusinessLogic
+  });
 
   idLastInDB.value = data["table"].at(-1)["header.cljhditm.id"]; // 取得DB最後一筆的 id
   console.log("最後一筆的 id：", idLastInDB.value);
@@ -751,28 +778,8 @@ const selectSupplier = async (supplier) => {
 const save = async () => {
   // 存檔到資料庫
 
-  // 暫時比照exe在保存時處理
   results.value.forEach((item) => {
-    console.log("處理item:", item);
-    // 如果數量和重量是正數, 則轉換成負數 #BusinessLogic
-    if (item["header.cljhditm.pcs"] > 0) {
-      item["header.cljhditm.pcs"] = -Math.abs(item["header.cljhditm.pcs"]);
-    }
-    if (item["header.cljhditm.kg"] > 0) {
-      item["header.cljhditm.kg"] = -Math.abs(item["header.cljhditm.kg"]);
-    }
-
-    // 如果!(spkindno===3 && (clkind === '板料' || clkind === '鋁擠型')), kg設為pcs*dz #BusinessLogic
-    if (
-      !(
-        item.spkindno === "3" &&
-        (item.clkind === "板料" || item.clkind === "鋁擠型")
-      )
-    ) {
-      item["header.cljhditm.kg"] = parseFloat(
-        (item["header.cljhditm.pcs"] * item["NA.sp.dz"]).toFixed(4)
-      );
-    }
+    convertItemValues(item, true); // 轉換成負數 #BusinessLogic
   });
 
   if (mode.value === "add") {
@@ -797,6 +804,11 @@ const save = async () => {
       ckkind: form.ckkind, 
       itm: itm,
     };
+
+    results.value.forEach((item) => {
+      convertItemValues(item, false); // 轉換成正數 #BusinessLogic
+    });
+
     const data = await utils.fetchData("clthdDetailsAdd.php", params); // 透過api新增資料
     console.log("新增資料結果：", data);
     alert("存檔完成");
@@ -824,6 +836,11 @@ const save = async () => {
       danno: form.danno,
       itm: itm,
     };
+
+    results.value.forEach((item) => {
+      convertItemValues(item, false); // 轉換成正數 #BusinessLogic
+    });
+
     const data = await utils.fetchData("clthditmUpdateNewRow.php", params); // 透過api更新資料
     console.log("更新資料結果：", data);
     alert("存檔完成");
@@ -875,7 +892,7 @@ const updateForm = async (field) => {
 
   // 檢查日期是否是今天以後的日期 #BusinessLogic
   if (field.column === "ddate") {
-    if (isFieldValid(form[field.column], field.key) === false) {
+    if (isFieldValid(form[field.column], field.key, form) === false) {
       alert("日期錯誤, 不能開今天以後的單");
       form[field.column] = "";
       return;
@@ -886,7 +903,7 @@ const updateForm = async (field) => {
     // 更新資料庫
 
     // 檢察欄位是否有效
-    if (!isFieldValid(form[field.column], field.key)) {
+    if (!isFieldValid(form[field.column], field.key, form)) {
       return;
     }
 
@@ -908,12 +925,10 @@ const updateTable = async (item, key) => {
   
   if (key === "header.cljhditm.pcs") {
     // 檢查數量是否大於庫存 #BusinessLogic
-    if (item[key] < 0 && item["header.cljhditm.kcpcs"] !== undefined) {
-      if (Math.abs(item[key]) > Math.ceil(parseFloat(item["header.cljhditm.kcpcs"]))) {
-        alert("數量不能大於庫存");
-        item[key] = 0; // 如果數量大於庫存, 則設為0
-        return;
-      }
+    if (item[key] > Math.ceil(parseFloat(item["header.cljhditm.kcpcs"]))) {
+      alert("數量不能大於庫存");
+      item[key] = 0; // 如果數量大於庫存, 則設為0
+      return;
     }
   }
 
@@ -950,45 +965,14 @@ const updateTable = async (item, key) => {
     }
 
     // 檢察欄位是否有效
-    if (!isFieldValid(item[key], key)) {
+    if (!isFieldValid(item[key], key, item)) {
       console.error(`欄位 ${key} 的值無效:`, item[key]);
       return;
     }
 
     if (confirm(`您確定要更新${labels.value[key].name}為${item[key]}嗎?`)) {
-
-      // 暫時比照exe在保存時處理
       
-      // 如果數量和重量是正數, 則轉換成負數 #BusinessLogic
-      if (item["header.cljhditm.pcs"] > 0) {
-        item["header.cljhditm.pcs"] = -Math.abs(item["header.cljhditm.pcs"]);
-      }
-      if (item["header.cljhditm.kg"] > 0) {
-        item["header.cljhditm.kg"] = -Math.abs(item["header.cljhditm.kg"]);
-      }
-      
-      // 如果!(spkindno===3 && (clkind === '板料' || clkind === '鋁擠型')), kg設為pcs*dz #BusinessLogic
-      if (
-        !(
-          item.spkindno === "3" &&
-          (item.clkind === "板料" || item.clkind === "鋁擠型")
-        )
-      ) {
-        item["header.cljhditm.kg"] = parseFloat(
-          (item["header.cljhditm.pcs"] * item["NA.sp.dz"]).toFixed(4)
-        );
-      }
-
-      // 只有原材料是以kg為單位計價 #BusinessLogic
-      if (item.spkindno === "3") {
-        item["header.cljhditm.pay"] = parseFloat(
-          (item["header.cljhditm.kg"] * item["header.cljhditm.price"]).toFixed(2)
-        ); // 計算金額
-      } else {
-        item["header.cljhditm.pay"] = parseFloat(
-          (item["header.cljhditm.pcs"] * item["header.cljhditm.price"]).toFixed(2)
-        ); // 計算金額
-      }
+      convertItemValues(item, true); // 轉換成負數 #BusinessLogic
 
       const params = {
         danno: form.danno,
@@ -996,14 +980,20 @@ const updateTable = async (item, key) => {
         column: labels.value[key].column,
         value: item[key],
       };
+
+      convertItemValues(item, false); // 轉換成正數 #BusinessLogic
+    
       const data = await utils.fetchData("clthditmUpdate.php", params); // 透過api更新資料
       if (data.error) {
+        console.error("更新失敗:", data.error);
         alert("更新失敗: " + data.error);
         return;
       }
       console.log("更新結果:", data);
       alert("更新完成");
     }
+
+    
   }
 };
 
@@ -1104,7 +1094,7 @@ const formRows = computed(() => {
         ...labels.value["label.cljhdmst.supplyno"],
         componentType: "icon-text-field",
         icon:
-          mode.value === "add" && isAllFieldValid.value
+          mode.value === "add" && isAllFieldValid.value && form.supplyno === ""
             ? "mdi-dots-horizontal-circle"
             : null,
         onClick: openDialog,
@@ -1151,7 +1141,7 @@ const {
   isFocusMechanismActive,
   isErrorVisible,
   isFormComplete,
-} = useFieldValidate(results, form, formRows.value, fieldRefs, labels.value);
+} = useFieldValidate(results, form, formRows.value, fieldRefs, labels.value, "header.cljhditm.id");
 
 const { numberColumnsConfig, textColumnsConfig, dateColumnsConfig } =
   useTableColumnConfig(
@@ -1164,7 +1154,8 @@ const { numberColumnsConfig, textColumnsConfig, dateColumnsConfig } =
     isFieldDisabled,
     isFocusMechanismActive,
     updateTable,
-    setFieldRef
+    setFieldRef,
+    "header.cljhditm.id"
 ); // 通用的表格欄位設定
 
 // 表格中需要特殊處理的欄位
@@ -1189,7 +1180,7 @@ const specialTableColumns = {
       "click:append-inner": () => openSpDialog(item),
     }),
   },
-  "header.cljhditm.pcs": numberColumnsConfig(4, false),
+  "header.cljhditm.pcs": numberColumnsConfig(4),
   "header.cljhditm.kg": {
     getProps: (item, key) => ({
       ref: setFieldRef(`field_${item["header.cljhditm.id"]}_${key}`),
@@ -1202,7 +1193,7 @@ const specialTableColumns = {
         isFieldDisabled(item, key),
       class: labels.value[key]?.dataType === "number" ? "number-field" : "",
       error:
-        !isFieldValid(item[key], key) ||
+        !isFieldValid(item[key], key, item) ||
         labels.value[key].validationGroup === getInvalidGroupNames(item)[0],
       "error-messages":
         isFocusMechanismActive.value && !isFieldDisabled(item, key)
@@ -1215,12 +1206,12 @@ const specialTableColumns = {
       focus: (event) => handleFocus(item, key, event.target),
       blur: (event) => handleBlur(item, key, event.target),
       change: () => {
-        utils.handleField(item, key, 4, false);
+        utils.handleField(item, key, 4);
         updateTable(item, key);
       },
     }),
   },
-  "header.cljhditm.price": numberColumnsConfig(4, true)
+  "header.cljhditm.price": numberColumnsConfig(4)
 };
 
 function handleBeforeUnload(event) {

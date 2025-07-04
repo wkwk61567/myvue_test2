@@ -2,7 +2,14 @@
 
 import { ref, computed, watch } from "vue";
 
-export function useFieldValidate(results, form, formRows, fieldRefs, labels) {
+export function useFieldValidate(
+  results,
+  form,
+  formRows,
+  fieldRefs,
+  labels,
+  idKey
+) {
   // 聚焦機制狀態
   const focusedItem = ref(null); // 用來存儲當前聚焦的行
   const focusedField = ref(null); // 用來存儲當前聚焦的欄位
@@ -19,8 +26,7 @@ export function useFieldValidate(results, form, formRows, fieldRefs, labels) {
   }); // 表格中的必填欄位
 
   function getElementRef(item, field) {
-    const refName = `field_${item["NA.cldhditm.id"]}_${field}`;
-    //`field_${focusedItem["NA.cldhditm.id"]}_${focusedField}`
+    const refName = `field_${item[idKey]}_${field}`;
     const elementRef = fieldRefs[refName];
     // refs 可能是陣列（如果有重複的 ref）或單個元素
     if (Array.isArray(elementRef)) {
@@ -33,11 +39,32 @@ export function useFieldValidate(results, form, formRows, fieldRefs, labels) {
     }
   }
 
-  function isFieldValid(fieldValue, field) {
+  function isFieldValid(fieldValue, field, item = null) {
     // 驗證某個欄位是否已填有效值
     // #BusinessLogic
-
-    if (labels[field].validationRule === "nonEmptyString") {
+    if (labels[field].validationRule === "numberOrPositive") {
+      if (
+        (item.spkindno === "3" && item.clkind === "板料") ||
+        item.clkind === "鋁擠型"
+      ) {
+        // 原材料的板料或鋁擠型欄位，檢查是否為有效正數
+        return (
+          fieldValue !== undefined &&
+          fieldValue !== null &&
+          !isNaN(parseFloat(fieldValue)) &&
+          isFinite(fieldValue) &&
+          parseFloat(fieldValue) > 0
+        );
+      } else {
+        // 其他則檢查是否為有效數字
+        return (
+          fieldValue !== undefined &&
+          fieldValue !== null &&
+          !isNaN(parseFloat(fieldValue)) &&
+          isFinite(fieldValue)
+        );
+      }
+    } else if (labels[field].validationRule === "nonEmptyString") {
       // 如果是非空字串，則檢查是否為空
       return (
         fieldValue !== undefined &&
@@ -51,15 +78,6 @@ export function useFieldValidate(results, form, formRows, fieldRefs, labels) {
         fieldValue !== null &&
         !isNaN(parseFloat(fieldValue)) &&
         isFinite(fieldValue)
-      );
-     } else if (labels[field].validationRule === "nonZeroNumber") {
-      // 如果是非0數字，則檢查是否為有效數字且不為0
-      return (
-        fieldValue !== undefined &&
-        fieldValue !== null &&
-        !isNaN(parseFloat(fieldValue)) &&
-        isFinite(fieldValue) &&
-        parseFloat(fieldValue) !== 0
       );
     } else if (labels[field].validationRule === "positive") {
       // 如果是正數，則檢查是否為有效正數
@@ -153,7 +171,7 @@ export function useFieldValidate(results, form, formRows, fieldRefs, labels) {
     // 驗證某一行需要檢查的欄位是否都已填有效值
     if (
       fieldsRequired.value.every((field) => {
-        return isFieldValid(item[field], field);
+        return isFieldValid(item[field], field, item);
       })
     ) {
       const invalidGroups = getInvalidGroupNames(item);
@@ -211,14 +229,14 @@ export function useFieldValidate(results, form, formRows, fieldRefs, labels) {
 
   function focusNextInvalidField(item) {
     // 尋找下一個無效欄位並聚焦
-
+    console.log("聚焦下一個無效欄位:", item);
     // 先檢查當前行中的後續欄位
     const currentItemIndex = results.value.indexOf(item);
     if (currentItemIndex !== -1) {
       // 檢查當前行中的欄位
       for (let i = 0; i < fieldsRequired.value.length; i++) {
         const nextField = fieldsRequired.value[i];
-        if (!isFieldValid(item[nextField], nextField)) {
+        if (!isFieldValid(item[nextField], nextField, item)) {
           // 找到了當前行中的下一個無效欄位
           const elementRef = getElementRef(item, nextField);
           if (elementRef) {
@@ -241,7 +259,7 @@ export function useFieldValidate(results, form, formRows, fieldRefs, labels) {
         for (let i = 0; i < fieldsRequired.value.length; i++) {
           const field = fieldsRequired.value[i];
 
-          if (!isFieldValid(nextRow[field], field)) {
+          if (!isFieldValid(nextRow[field], field, item)) {
             // 找到了後續行中的無效欄位
             const elementRef = getElementRef(nextRow, field);
 
@@ -288,7 +306,7 @@ export function useFieldValidate(results, form, formRows, fieldRefs, labels) {
 
   function handleFocus(item, field, elementRef) {
     // 處理欄位獲得焦點事件
-    if (!isFieldValid(item[field], field)) {
+    if (!isFieldValid(item[field], field, item)) {
       activateFocusMechanism(item, field, elementRef);
     }
   }
@@ -308,7 +326,10 @@ export function useFieldValidate(results, form, formRows, fieldRefs, labels) {
       return;
     }
 
-    if (!isFocusMechanismActive.value && !isFieldValid(item[field], field)) {
+    if (
+      !isFocusMechanismActive.value &&
+      !isFieldValid(item[field], field, item)
+    ) {
       activateFocusMechanism(item, field, elementRef);
     }
 
@@ -317,7 +338,7 @@ export function useFieldValidate(results, form, formRows, fieldRefs, labels) {
       focusedItem.value === item &&
       focusedField.value === field
     ) {
-      if (isFieldValid(item[field], field)) {
+      if (isFieldValid(item[field], field, item)) {
         // 欄位有效，解除聚焦機制
         //deactivateFocusMechanism();
 
@@ -348,7 +369,7 @@ export function useFieldValidate(results, form, formRows, fieldRefs, labels) {
     () => {
       // 只有在聚焦機制啟動時才進行檢查
       if (isFocusMechanismActive.value === true) {
-        const refName = `field_${focusedItem.value["NA.cldhditm.id"]}_${focusedField.value}`;
+        const refName = `field_${focusedItem.value[idKey]}_${focusedField.value}`;
 
         // 檢查 results 中是否存在對應的 focusedItem
         if (!results.value.includes(focusedItem.value)) {

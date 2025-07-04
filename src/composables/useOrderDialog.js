@@ -5,7 +5,7 @@ export function useOrderDialog(selectRow = null) {
   // 訂貨單的小視窗
 
   const isCallOrderDialogVisible = ref(false); // 調用訂單介面(CallOrderDialog)是否顯示
-  const orderQuery = reactive({ danno: "", spno: "", spspec: "" }); // 用來存儲調用訂單介面(CallOrderDialog)的訂單查詢條件
+  const orderQuery = reactive({ danno: "", spno: "", spspec: "", status: "" }); // 用來存儲調用訂單介面(CallOrderDialog)的訂單查詢條件
   const orders = ref([]); // 用來存儲從API獲取的訂單資料 也就是調用訂單介面(CallOrderDialog)裡的訂單列表
   const orderFiltered = ref([]); // 用來存儲過濾後的訂單列表 顯示於調用訂單介面(CallOrderDialog)
 
@@ -20,10 +20,11 @@ export function useOrderDialog(selectRow = null) {
     orderQuery.danno = "";
     orderQuery.spno = "";
     orderQuery.spspec = "";
+    orderQuery.status = "pending"; // 預設查詢狀態為未完成
 
     // 調用訂單查詢
     if (!supplyno) {
-      console.log("供方編碼為空");
+      console.error("供方編碼為空");
     } else {
       const params = {
         supplyno: supplyno,
@@ -59,20 +60,38 @@ export function useOrderDialog(selectRow = null) {
       }
     }
 
-    orderFiltered.value = orders.value; // 初始化訂單列表
+    handleInputOrderQuery(); // 初始化訂單列表
     isCallOrderDialogVisible.value = true; // 打開調用訂單介面
   }
 
   function handleInputOrderQuery() {
     // 處理調用訂單介面(CallOrderDialog)的查詢條件, 根據查詢條件過濾訂單列表
+    let ordersStatusFiltered = orders.value;
+
+    if (orderQuery.status === "pending") {
+      // 如果查詢狀態為未完成，則只顯示未完成的訂單
+      ordersStatusFiltered = orders.value.filter(
+        (order) =>
+          order["header.cldhditm.getpcs"] + order["header.cldhditm.jzpcs"] <
+          order["header.cldhditm.dhdpcs"]
+      );
+    } else if (orderQuery.status === "completed") {
+      // 如果查詢狀態為已完成，則只顯示已完成的訂單
+      ordersStatusFiltered = orders.value.filter(
+        (order) =>
+          order["header.cldhditm.getpcs"] + order["header.cldhditm.jzpcs"] >=
+          order["header.cldhditm.dhdpcs"]
+      );
+    }
+
     if (
       orderQuery["danno"].trim() === "" &&
       orderQuery["spno"].trim() === "" &&
       orderQuery["spspec"].trim() === ""
     ) {
-      orderFiltered.value = orders.value;
+      orderFiltered.value = ordersStatusFiltered;
     } else {
-      orderFiltered.value = orders.value.filter(
+      orderFiltered.value = ordersStatusFiltered.filter(
         (order) =>
           (orderQuery["danno"].trim() === "" ||
             (order["header.cldhditm.danno"] &&
@@ -91,7 +110,6 @@ export function useOrderDialog(selectRow = null) {
                 .includes(orderQuery["spspec"].toUpperCase())))
       );
     }
-    console.log("orderFiltered:", orderFiltered.value);
   }
 
   return {

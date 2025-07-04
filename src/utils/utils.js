@@ -1,7 +1,6 @@
 // utils.js
 import { API_BASE_URL } from "@/config";
 import axios from "axios";
-import { it } from "vitest";
 import * as XLSX from "xlsx";
 
 export function sleep(ms) {
@@ -211,7 +210,7 @@ export function isReadonly(mode, inputType, isEditable, componentType) {
   );
 }
 
-export function formatDateTimeFields (results, labels) {
+export function formatDateTimeFields(results, labels) {
   // 轉換日期和時間欄位
   results.forEach((item) => {
     // 根據dataType來決定如何處理時間格式
@@ -225,7 +224,7 @@ export function formatDateTimeFields (results, labels) {
       }
     }
   });
-};
+}
 
 export function exportExcel(data, headers, name = "export") {
   console.log("exportExcel:", data, headers, name);
@@ -253,7 +252,7 @@ export function exportExcel(data, headers, name = "export") {
 
   // 導出文件
   XLSX.writeFile(workbook, `${name}.xlsx`);
-};
+}
 
 export async function handleUrlParams(setMode) {
   //檢查 URL 參數，自動切換到對應的模式，並從 URL 中移除 mode 參數
@@ -287,11 +286,10 @@ export function selectCellText(event) {
   selection.addRange(range);
 }
 
-
-export async function printCldhdOrder (danno) {
+export async function printCldhdOrder(danno) {
   // 列印
 
-  const data = await fetchData("cldhdDetails.php", {danno: danno});
+  const data = await fetchData("cldhdDetails.php", { danno: danno });
   const supplyno = data["form"][0]["supplyno"];
   const ddate = data["form"][0]["ddate"].date.split(" ")[0];
 
@@ -315,7 +313,8 @@ export async function printCldhdOrder (danno) {
 
   const maxRowsPerPage = 7; // 每頁最大行數
   const totalItems = data["table"].length;
-  const totalPages = totalItems === 0 ? 1 : Math.ceil(totalItems / maxRowsPerPage);
+  const totalPages =
+    totalItems === 0 ? 1 : Math.ceil(totalItems / maxRowsPerPage);
   let pagesContent = "";
 
   for (let page = 1; page <= totalPages; page++) {
@@ -333,7 +332,9 @@ export async function printCldhdOrder (danno) {
         <td style="text-align: center;">${item["header.sp.spunit"] || ""}</td>
         <td style="text-align: right;">${item["header.cldhditm.pcs"] || ""}</td>
         <td style="text-align: right;">${item["header.cldhditm.kg"] || ""}</td>
-        <td style="text-align: right;">${item["header.cldhditm.price"] || ""}</td>
+        <td style="text-align: right;">${
+          item["header.cldhditm.price"] || ""
+        }</td>
         <td style="text-align: right;">${item["header.cldhditm.pay"] || ""}</td>
         <td style="text-align: center;">${
           item["header.cldhditm.gdate"].date.split(" ")[0] || ""
@@ -346,7 +347,7 @@ export async function printCldhdOrder (danno) {
 
     let emptyRowsHtml = "";
     const rowsOnThisPage = pageItems.length;
-    
+
     // 用空白行填滿
     for (let i = 0; i < maxRowsPerPage - rowsOnThisPage; i++) {
       emptyRowsHtml +=
@@ -356,7 +357,10 @@ export async function printCldhdOrder (danno) {
     // 每頁都計算從第一筆到本頁最後一筆的合計
     const pageSum = data["table"]
       .slice(0, endIndex)
-      .reduce((total, item) => total + (parseFloat(item["header.cldhditm.pay"]) || 0), 0);
+      .reduce(
+        (total, item) => total + (parseFloat(item["header.cldhditm.pay"]) || 0),
+        0
+      );
     const formattedPageSum = parseFloat(pageSum.toFixed(2));
 
     const tfootHtml = `
@@ -384,9 +388,7 @@ export async function printCldhdOrder (danno) {
             <tr>
               <td style="width: 40%;"><b>訂單號碼：</b>${danno}</td>
               <td style="width: 20%; font-size: 16pt;"><div class="title">內 銷 訂 購 單</div></td>
-              <td style="width: 40%;" class="text-right"><b>訂購日期：</b>${
-                ddate
-              }</td>
+              <td style="width: 40%;" class="text-right"><b>訂購日期：</b>${ddate}</td>
             </tr>
           </table>
 
@@ -527,5 +529,42 @@ export async function printCldhdOrder (danno) {
     printWindow.print();
     printWindow.close();
   }, 250);
-  
-};
+}
+
+export async function readExcel(event) {
+  // 讀取excel
+  const file = event.target.files[0];
+  if (!file) return [];
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: "array" });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      // 轉成二維陣列
+      const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      if (rows.length < 2) return resolve([]);
+      const headers = rows[0];
+      const result = rows.slice(1).map((row) => {
+        const obj = {};
+        headers.forEach((key, idx) => {
+          let value = row[idx] ?? "";
+          // 自動判斷交貨日期欄位，若為數字則轉日期字串
+          if (key.includes("交貨日期") && typeof value === "number") {
+            // Excel 日期序號轉 JS 日期
+            const date = XLSX.SSF.parse_date_code(value);
+            if (date) {
+              value = `${date.y}/${date.m}/${date.d}`;
+            }
+          }
+          obj[key] = value;
+        });
+        return obj;
+      });
+      resolve(result);
+    };
+    reader.onerror = reject; // 如果讀取失敗，則回傳錯誤資訊
+    reader.readAsArrayBuffer(file);
+  });
+}

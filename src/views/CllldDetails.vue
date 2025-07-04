@@ -282,7 +282,7 @@ import {
   nextTick,
 } from "vue";
 import { useRouter } from "vue-router";
-import { INPUT_COLORS, HOVER_COLOR } from "@/config.js";
+import { SERIAL_PREFIX, INPUT_COLORS, HOVER_COLOR } from "@/config.js";
 import * as utils from "@/utils/utils.js";
 import ButtonsCRUDP from "@/components/ButtonsCRUDP.vue";
 import ButtonsSaveDiscard from "@/components/ButtonsSaveDiscard.vue";
@@ -420,7 +420,7 @@ const spQuery = reactive({
 const sp = ref([]); // 材料查詢結果
 const spFiltered = ref([]); // 過濾過的材料查詢結果
 let selectRow = null; // 用來儲存選取的行, 直接點選表格中的材料編碼時使用
-const  openSpDialog = async (item = null)  => {
+const openSpDialog = async (item = null) => {
   // 打開材料查詢介面
   selectRow = item; // 直接點選表格中的材料編碼時，儲存選取的行
 
@@ -562,7 +562,7 @@ const setMode = async (newMode) => {
 
     //  取得流水號(danno)
     const params = {
-      prefix: `D_ML`,
+      prefix: `${SERIAL_PREFIX}ML`,
       table: tableNameMST,
     };
     const dannoData = await utils.fetchData("getSerialNumber.php", params);
@@ -756,7 +756,7 @@ const updateForm = async (field) => {
 
   // 檢查日期是否是今天以後的日期 #BusinessLogic
   if (field.column === "ddate") {
-    if (isFieldValid(form[field.column], field.key) === false) {
+    if (isFieldValid(form[field.column], field.key, form) === false) {
       alert("日期錯誤, 不能開今天以後的單");
       form[field.column] = "";
       return;
@@ -767,7 +767,7 @@ const updateForm = async (field) => {
     // 更新資料庫
 
     // 檢察欄位是否有效
-    if (!isFieldValid(form[field.column], field.key)) {
+    if (!isFieldValid(form[field.column], field.key, form)) {
       return;
     }
 
@@ -854,7 +854,7 @@ const updateTable = async (item, key) => {
     }
 
     // 檢察欄位是否有效
-    if (!isFieldValid(item[key], key)) {
+    if (!isFieldValid(item[key], key, form)) {
       console.error(`欄位 ${key} 的值無效:`, item[key]);
       return;
     }
@@ -1081,13 +1081,13 @@ const {
   isFocusMechanismActive,
   isErrorVisible ,
   isFormComplete,
-} = useFieldValidate(results, form, formRows.value, fieldRefs, labels.value);
+} = useFieldValidate(results, form, formRows.value, fieldRefs, labels.value, "header.clllditm.id");
 
 const {
   numberColumnsConfig,
   textColumnsConfig,
   dateColumnsConfig,
-} = useTableColumnConfig(mode, labels, isFieldValid, getInvalidGroupNames, handleFocus, handleBlur, isFieldDisabled, isFocusMechanismActive, updateTable, setFieldRef); // 通用的表格欄位設定
+} = useTableColumnConfig(mode, labels, isFieldValid, getInvalidGroupNames, handleFocus, handleBlur, isFieldDisabled, isFocusMechanismActive, updateTable, setFieldRef, "header.clllditm.id"); // 通用的表格欄位設定
 
 // 表格中需要特殊處理的欄位
 const specialTableColumns = {

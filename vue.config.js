@@ -1,4 +1,5 @@
 module.exports = {
+  publicPath: "/vue/",
   chainWebpack: (config) => {
     config.module
       .rule("csv")

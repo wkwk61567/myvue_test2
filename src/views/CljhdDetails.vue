@@ -114,9 +114,10 @@
           @update:orderQuery[danno]="orderQuery.danno = $event"
           @update:orderQuery[spno]="orderQuery.spno = $event"
           @update:orderQuery[spspec]="orderQuery.spspec = $event"
+          @update:orderQuery[status]="orderQuery.status = $event"
           :orderFiltered="orderFiltered"
           @handleInputOrderQuery="handleInputOrderQuery"
-          @selectOrder="(item) => selectOrder(item, form.ddate, focusNextInvalidField)"
+          @selectOrder="(item) => selectOrder(item)"
         ></CallOrderDialog>
       </v-card-text>
     </v-card>
@@ -157,7 +158,7 @@
               v-bind="hoverProps"
               :style="isHovering ? { backgroundColor: HOVER_COLOR } : {}"
             >
-               <!-- 編輯按鈕(筆或勾勾)和刪除按鈕 -->
+               <!-- 刪除按鈕 -->
               <template v-if="mode !== 'view'">
                 <td :style="{ 'font-size': '24px' }">
                   <v-btn icon @click="deleteRow(item)">
@@ -254,7 +255,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onBeforeUnmount, inject, nextTick } from "vue";
 import { useRouter } from "vue-router";
-import { INPUT_COLORS, HOVER_COLOR } from "@/config.js";
+import { SERIAL_PREFIX, INPUT_COLORS, HOVER_COLOR } from "@/config.js";
 import * as utils from "@/utils/utils.js";
 import ButtonsCRUDP from "@/components/ButtonsCRUDP.vue";
 import ButtonsSaveDiscard from "@/components/ButtonsSaveDiscard.vue";
@@ -404,7 +405,7 @@ const setMode = async (newMode) => {
 
     //  取得流水號(danno)
     const params = {
-      prefix: "D_PC",
+      prefix: `${SERIAL_PREFIX}PC`,
       table: tableNameMST,
     };
     const dannoData = await utils.fetchData("getSerialNumber.php", params);
@@ -590,7 +591,7 @@ const discard = async () => {
   
   let confirmMessage = "";
   const isHasUnsavedRows = results.value.some(item => item["header.cljhditm.id"] > idLastInDB.value); // 是否有未儲存的行
-  const isNoRowsInDB  = orderInDBNum.value === 0; // 是否沒有行在資料庫中
+  const isNoRowsInDB = orderInDBNum.value === 0; // 是否沒有行在資料庫中
 
   if (mode.value === "add") {
     if (isHasUnsavedRows) {
@@ -625,7 +626,7 @@ const updateForm = async (field) => {
 
   // 檢查日期是否是今天以後的日期 #BusinessLogic
   if (field.column === "ddate") {
-    if (isFieldValid(form[field.column], field.key) === false) {
+    if (isFieldValid(form[field.column], field.key, form) === false) {
       alert("日期錯誤, 不能開今天以後的單");
       form[field.column] = "";
       return;
@@ -636,7 +637,7 @@ const updateForm = async (field) => {
     // 更新資料庫
 
     // 檢察欄位是否有效
-    if (!isFieldValid(form[field.column], field.key)) {
+    if (!isFieldValid(form[field.column], field.key, form)) {
       return;
     }
     
@@ -751,7 +752,7 @@ const updateTable = async (item, key) => {
     }
 
     // 檢察欄位是否有效
-    if (!isFieldValid(item[key], key)) {
+    if (!isFieldValid(item[key], key, item)) {
       console.error(`欄位 ${key} 的值無效:`, item[key]);
       return;
     }
@@ -923,24 +924,24 @@ const {
   isFocusMechanismActive,
   isErrorVisible ,
   isFormComplete,
-} = useFieldValidate(results, form, formRows.value, fieldRefs, labels.value);
+} = useFieldValidate(results, form, formRows.value, fieldRefs, labels.value, "header.cljhditm.id");
 
 const {
   numberColumnsConfig,
   textColumnsConfig,
   dateColumnsConfig,
-} = useTableColumnConfig(mode, labels, isFieldValid, getInvalidGroupNames, handleFocus, handleBlur, isFieldDisabled, isFocusMechanismActive, updateTable, setFieldRef); // 通用的表格欄位設定
+} = useTableColumnConfig(mode, labels, isFieldValid, getInvalidGroupNames, handleFocus, handleBlur, isFieldDisabled, isFocusMechanismActive, updateTable, setFieldRef, "header.cljhditm.id"); // 通用的表格欄位設定
 
 // 表格中需要特殊處理的欄位
 const specialTableColumns = {
   "header.cljhditm.jhpcs": numberColumnsConfig(),
   "header.cljhditm.jhkg": {
     getProps: (item, key) => ({
-      ref: setFieldRef(`field_${item["NA.cljhditm.id"]}_${key}`),
+      ref: setFieldRef(`field_${item["header.cljhditm.id"]}_${key}`),
       readonly: mode.value === 'view' || !(item.spkindno === '3' && (item.clkind === '板料' || item.clkind === '鋁擠型')) || isFieldDisabled(item, key),
       class: labels.value[key]?.dataType === "number" ? "number-field" : "",
       error:
-        !isFieldValid(item[key], key) ||
+        !isFieldValid(item[key], key, item) ||
         labels.value[key].validationGroup === getInvalidGroupNames(item)[0],
       "error-messages":
         isFocusMechanismActive.value && !isFieldDisabled(item, key)

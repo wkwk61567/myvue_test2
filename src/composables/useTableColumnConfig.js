@@ -10,7 +10,8 @@ export function useTableColumnConfig(
   isFieldDisabled,
   isFocusMechanismActive,
   updateTable,
-  setFieldRef
+  setFieldRef,
+  idKey
 ) {
   const numberColumnsConfig = (
     decimalPlaces = 4,
@@ -18,11 +19,11 @@ export function useTableColumnConfig(
   ) => ({
     // 數字欄位的通用配置
     getProps: (item, key) => ({
-      ref: setFieldRef(`field_${item["NA.cldhditm.id"]}_${key}`),
+      ref: setFieldRef(`field_${item[idKey]}_${key}`),
       readonly: mode.value === "view" || isFieldDisabled(item, key),
       class: labels.value[key]?.dataType === "number" ? "number-field" : "",
       error:
-        !isFieldValid(item[key], key) ||
+        !isFieldValid(item[key], key, item) ||
         labels.value[key].validationGroup === getInvalidGroupNames(item)[0],
       "error-messages":
         isFocusMechanismActive.value && !isFieldDisabled(item, key)
@@ -44,10 +45,11 @@ export function useTableColumnConfig(
   const textColumnsConfig = () => ({
     // 文本欄位的通用配置
     getProps: (item, key) => ({
+      ref: setFieldRef(`field_${item[idKey]}_${key}`),
       readonly: mode.value === "view" || isFieldDisabled(item, key),
       class: labels.value[key]?.dataType === "text" ? "text-field" : "",
       error:
-        !isFieldValid(item[key], key) ||
+        !isFieldValid(item[key], key, item) ||
         labels.value[key].validationGroup === getInvalidGroupNames(item)[0],
       "error-messages":
         isFocusMechanismActive.value && !isFieldDisabled(item, key)
@@ -66,11 +68,11 @@ export function useTableColumnConfig(
   const dateColumnsConfig = () => ({
     // 日期欄位的通用配置
     getProps: (item, key) => ({
-      ref: setFieldRef(`field_${item["NA.cldhditm.id"]}_${key}`),
+      ref: setFieldRef(`field_${item[idKey]}_${key}`),
       type: "date",
       readonly: mode.value === "view" || isFieldDisabled(item, key),
       error:
-        !isFieldValid(item[key], key) ||
+        !isFieldValid(item[key], key, item) ||
         labels.value[key].validationGroup === getInvalidGroupNames(item)[0],
       "error-messages":
         isFocusMechanismActive.value && !isFieldDisabled(item, key)

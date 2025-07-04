@@ -27,6 +27,25 @@
           :label="labels['filter.sp.spspec'].name"
           @input="$emit('update:orderQuery[spspec]', $event.target.value);  $emit('handleInputOrderQuery');"
         ></v-text-field>
+        <v-radio-group
+          :model-value="orderQuery['status']"
+          @update:model-value="$emit('update:orderQuery[status]', $event); $emit('handleInputOrderQuery');"
+        >
+          <v-row  style="margin: 20px 0px 20px 0px">
+            <v-radio
+              :label="labels['filter.NA.revert'].name"
+              value=""
+            ></v-radio>
+            <v-radio
+              :label="labels['filter.NA.completed'].name"
+              value="completed"
+            ></v-radio>
+            <v-radio
+              :label="labels['filter.NA.pending'].name"
+              value="pending"
+            ></v-radio>
+          </v-row>
+        </v-radio-group>
 
         <!-- 顯示訂單列表 -->
         <v-data-table
@@ -87,6 +106,7 @@ const emit = defineEmits([
   "update:orderQuery[danno]",
   "update:orderQuery[spno]",
   "update:orderQuery[spspec]",
+  "update:orderQuery[status]",
   "handleInputOrderQuery",
   "selectOrder",
 ]);

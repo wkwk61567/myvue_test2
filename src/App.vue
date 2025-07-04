@@ -1,11 +1,16 @@
 <template>
   <div id="app">
-     <!-- 鎖定畫面覆蓋層 -->
-     <div v-if="isLocked" class="lock-screen">
-      <h2>頁面已鎖定</h2>
-      <input type="password" v-model="passwordInput" placeholder="輸入密碼解鎖(1234)">
-      <button @click="unlockApp">解鎖</button>
-      <p v-if="unlockError" style="color: red;">密碼錯誤</p>
+    <!-- 標題-->
+    <header>
+      <p>{{title}} | {{ currentPageLabel }}</p>
+    </header>
+
+    <!-- 鎖定畫面覆蓋層 -->
+    <div v-if="isLocked" class="lock-screen">
+    <h2>頁面已鎖定</h2>
+    <input type="password" v-model="passwordInput" placeholder="輸入密碼解鎖(1234)">
+    <button @click="unlockApp">解鎖</button>
+    <p v-if="unlockError" style="color: red;">密碼錯誤</p>
     </div>
 
     <div v-show="!isLocked">
@@ -21,6 +26,9 @@
             <v-btn v-bind="props" variant="outlined">{{ labels['menu.NA.purchase'].name }}</v-btn>
           </template>
           <v-list>
+            <v-list-item to="/cldhdImport">
+              <v-list-item-title>{{ labels['submenu.NA.cldhdImport'].name }}</v-list-item-title>
+            </v-list-item>
             <v-list-item to="/cldhdMaster">
               <v-list-item-title>{{ labels['submenu.NA.cldhd'].name }}</v-list-item-title>
             </v-list-item>
@@ -73,6 +81,7 @@ import { ref, computed, watch, onMounted, onBeforeUnmount, provide } from 'vue';
 import { useRouter } from 'vue-router';
 import dictionaryConfig from "@/config"; // Renamed to avoid conflict with dictionary variable if any
 import { SELECTED_LANGUAGE, LANGUAGE_OPTIONS } from "@/config.js";
+import * as utils from "@/utils/utils.js";
 import LanguageSelector from "@/components/LanguageSelector.vue";
 import { useI18nHeadersLabels } from "@/composables/useI18nHeadersLabels.js";
 
@@ -99,6 +108,8 @@ provide('selectedLanguage', computed(() => selectedLanguage.value));
 // 取得當前語言的字典
 const fileName = import.meta.url.split("/").pop().split("%")[0];
 const { labels } = useI18nHeadersLabels(selectedLanguage, fileName);
+
+const title = ref("系統"); // 標題
 
 const lockApp = () => {
   if (!isLocked.value) { // 避免重複鎖定
@@ -180,8 +191,26 @@ watch(isLocked, (newValue) => {
   }
 });
 
+
+const currentPageLabel = computed(() => {
+  // 取得當前頁面的 label 名稱
+
+  // 取得目前路由的 meta.titleKey
+  const currentRoute = router.currentRoute.value;
+  const titleKey = currentRoute.meta?.titleKey;
+
+  if (titleKey && labels.value?.[`submenu.NA.${titleKey}`]?.name) {
+    return labels.value[`submenu.NA.${titleKey}`].name;
+  }
+  return '';
+});
+
 // Lifecycle Hooks
-onMounted(() => {
+onMounted(async () => {
+  // 載入標題
+  const data = await utils.fetchData("xtsetup.php", {});
+  title.value = data[0]["progname"];
+  
 
   // 只有在未鎖定時才啟動計時器和監聽器
   if (!isLocked.value) {

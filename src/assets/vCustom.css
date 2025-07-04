@@ -8,6 +8,7 @@
 
 .v-row {
   padding: 0px;
+  margin: 0px;
 }
 
 .v-col {
@@ -21,7 +22,7 @@
   margin: 0 !important;
 }
 
-:deep(.v-messages ){
+:deep(.v-messages){
   min-height: 0  !important;
   height: auto !important;
 }
@@ -121,3 +122,5 @@
 :deep(.v-data-table__wrapper) {
   border: 2px solid green !important;
 }
+
+
